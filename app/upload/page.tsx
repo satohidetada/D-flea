@@ -14,8 +14,8 @@ export default function UploadPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  // ★1でコピーした「ウェブアプリ URL」をここに貼り付けてください！
-  const GAS_URL = "1JaZDcllGXEWqhwn4QwdZFLIw7epwG2CtqHazAKAt86eRLCPv0h5PPmND";
+  // 共有いただいた最新のGAS URL
+  const GAS_URL = "https://script.google.com/macros/s/AKfycby8EALWBchN8UKI4_jbSOWTmfkheV4oUAfE1Wes687iBg612rOzO0PVc1vlmY8uTcU/exec";
   const SECRET_API_KEY = "my-secret-token-777";
 
   useEffect(() => {
@@ -38,6 +38,7 @@ export default function UploadPage() {
 
     setLoading(true);
     try {
+      // 1. 画像をBase64に変換
       const reader = new FileReader();
       const base64Promise = new Promise<string>((resolve) => {
         reader.onload = () => resolve(reader.result?.toString().split(",")[1] || "");
@@ -45,7 +46,7 @@ export default function UploadPage() {
       });
       const base64Data = await base64Promise;
 
-      // GASへの送信（リダイレクトを考慮し、フェッチ設定を最適化）
+      // 2. GASへデータを送信
       const response = await fetch(GAS_URL, {
         method: "POST",
         body: JSON.stringify({
@@ -56,17 +57,19 @@ export default function UploadPage() {
         }),
       });
 
+      // GASはリダイレクトを伴うため、まずはテキストで受け取ってからパース
       const text = await response.text();
       let result;
       try {
         result = JSON.parse(text);
       } catch (err) {
-        throw new Error("GASからの応答がJSONではありません。デプロイ設定（全員に公開）を確認してください。");
+        console.error("Raw response:", text);
+        throw new Error("GASからの応答がJSONではありません。デプロイ設定が「全員(Anyone)」になっているか、スクリプトエディタで承認済みか確認してください。");
       }
       
       if (result.error) throw new Error(result.error);
 
-      // Firestoreに保存
+      // 3. Firestoreに保存
       await addDoc(collection(db, "items"), {
         name,
         price: Number(price),
@@ -81,7 +84,7 @@ export default function UploadPage() {
       alert("NOMIへの出品が完了しました！");
       router.push("/");
     } catch (error: any) {
-      console.error("Upload Error:", error);
+      console.error("Upload Error Details:", error);
       alert("エラー: " + error.message);
     } finally {
       setLoading(false);
@@ -89,24 +92,48 @@ export default function UploadPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 text-black">
-      <div className="max-w-md mx-auto bg-white p-6 rounded-lg shadow">
+    <div className="min-h-screen bg-gray-50 p-4 text-black text-center">
+      <div className="max-w-md mx-auto bg-white p-6 rounded-lg shadow text-left">
         <h1 className="text-2xl font-bold mb-6 text-red-600">NOMIに出品</h1>
         <form onSubmit={handleUpload} className="space-y-4">
           <div>
             <label className="block text-sm font-bold mb-1">商品画像</label>
-            <input type="file" accept="image/*" onChange={(e) => setImage(e.target.files?.[0] || null)} className="w-full border p-2 rounded" required />
+            <input 
+              type="file" 
+              accept="image/*" 
+              onChange={(e) => setImage(e.target.files?.[0] || null)} 
+              className="w-full border p-2 rounded" 
+              required 
+            />
           </div>
           <div>
             <label className="block text-sm font-bold mb-1">商品名</label>
-            <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full border p-2 rounded" required />
+            <input 
+              type="text" 
+              value={name} 
+              onChange={(e) => setName(e.target.value)} 
+              className="w-full border p-2 rounded" 
+              placeholder="例: スニーカー"
+              required 
+            />
           </div>
           <div>
             <label className="block text-sm font-bold mb-1">価格 (円)</label>
-            <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} className="w-full border p-2 rounded" required />
+            <input 
+              type="number" 
+              value={price} 
+              onChange={(e) => setPrice(e.target.value)} 
+              className="w-full border p-2 rounded" 
+              placeholder="3000"
+              required 
+            />
           </div>
-          <button type="submit" disabled={loading} className={`w-full py-3 rounded-lg font-bold text-white ${loading ? "bg-gray-400" : "bg-red-600 hover:bg-red-700"}`}>
-            {loading ? "送信中..." : "出品を確定する"}
+          <button 
+            type="submit" 
+            disabled={loading} 
+            className={`w-full py-3 rounded-lg font-bold text-white transition ${loading ? "bg-gray-400" : "bg-red-600 hover:bg-red-700"}`}
+          >
+            {loading ? "アップロード中..." : "出品を確定する"}
           </button>
         </form>
       </div>
