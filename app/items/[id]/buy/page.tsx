@@ -1,8 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { db, auth } from "@/lib/firebase/config";
-import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { db, auth } from "@/lib/firebase";
+import { doc, getDoc, updateDoc, setDoc, serverTimestamp } from "firebase/firestore";
 
 export default function BuyConfirm() {
   const params = useParams();
@@ -21,15 +21,32 @@ export default function BuyConfirm() {
     if (!user || !item) return;
     setLoading(true);
     try {
+      // 1. 商品を売り切れ状態に更新
       await updateDoc(doc(db, "items", id), {
+        status: "sold", // 以前のコードと合わせるため status を使用
         isSold: true,
         buyerId: user.uid,
         soldAt: serverTimestamp(),
       });
-      alert("購入が完了しました！");
-      router.push("/");
-    } catch (error) {
-      alert("購入に失敗しました");
+
+      // 2. チャットルームの初期データを作成
+      await setDoc(doc(db, "chats", id), {
+        itemId: id,
+        itemName: item.name,
+        sellerId: item.sellerId,
+        buyerId: user.uid,
+        updatedAt: serverTimestamp(),
+        lastMessage: "購入されました！"
+      }, { merge: true });
+
+      alert("購入が完了しました！取引チャットへ移動します。");
+
+      // ★ここを修正：メインではなくチャット画面へ飛ばす
+      router.push(`/chat/${id}`);
+
+    } catch (error: any) {
+      console.error(error);
+      alert("購入に失敗しました: " + error.message);
     } finally {
       setLoading(false);
     }
@@ -56,10 +73,6 @@ export default function BuyConfirm() {
         <div className="flex justify-between py-2">
           <span className="text-gray-500">支払い金額</span>
           <span className="font-bold text-red-600 text-xl">¥{Number(item.price).toLocaleString()}</span>
-        </div>
-        <div className="flex justify-between py-2 text-sm">
-          <span className="text-gray-500">支払い方法</span>
-          <span className="font-bold">残高払い (テスト)</span>
         </div>
       </div>
 
