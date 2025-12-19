@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
-import { db, auth, storage } from "../lib/firebase";
+// パスを絶対パス指定（@/）に変更して確実に読み込ませます
+import { db, auth, storage } from "@/lib/firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { onAuthStateChanged, User } from "firebase/auth";
@@ -35,12 +36,10 @@ export default function UploadPage() {
 
     setLoading(true);
     try {
-      // 1. 画像をStorageにアップロード
       const imageRef = ref(storage, `items/${Date.now()}_${image.name}`);
       await uploadBytes(imageRef, image);
       const imageUrl = await getDownloadURL(imageRef);
 
-      // 2. Firestoreに商品データを保存
       await addDoc(collection(db, "items"), {
         name,
         price: Number(price),
@@ -84,7 +83,6 @@ export default function UploadPage() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-full border p-2 rounded"
-              placeholder="例: スニーカー"
               required
             />
           </div>
@@ -95,7 +93,6 @@ export default function UploadPage() {
               value={price}
               onChange={(e) => setPrice(e.target.value)}
               className="w-full border p-2 rounded"
-              placeholder="3000"
               required
             />
           </div>
@@ -105,7 +102,6 @@ export default function UploadPage() {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               className="w-full border p-2 rounded h-24"
-              placeholder="商品の状態などを入力してください"
             />
           </div>
           <button 
