@@ -1,21 +1,31 @@
 "use client";
 import { useEffect, useState } from "react";
 import { db, auth } from "../lib/firebase";
-import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot, doc, setDoc, deleteDoc, getDoc } from "firebase/firestore";
 import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, User } from "firebase/auth";
 import Link from "next/link";
 
 export default function Home() {
   const [items, setItems] = useState<any[]>([]);
   const [user, setUser] = useState<User | null>(null);
+  const [userLikes, setUserLikes] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    // ログイン状態を監視
     const unsubAuth = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
+      if (currentUser) {
+        // ユーザーが「いいね」している商品のリストを監視
+        const unsubLikes = onSnapshot(collection(db, "users", currentUser.uid, "likes"), (snap) => {
+          const likes: Record<string, boolean> = {};
+          snap.docs.forEach(doc => likes[doc.id] = true);
+          setUserLikes(likes);
+        });
+        return () => unsubLikes();
+      } else {
+        setUserLikes({});
+      }
     });
 
-    // 商品一覧を監視
     const q = query(collection(db, "items"), orderBy("createdAt", "desc"));
     const unsubSnap = onSnapshot(q, (snapshot) => {
       setItems(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
@@ -27,9 +37,26 @@ export default function Home() {
     };
   }, []);
 
-  const login = () => {
+  const login = async () => {
     const provider = new GoogleAuthProvider();
-    signInWithPopup(auth, provider);
+    await signInWithPopup(auth, provider);
+  };
+
+  const toggleLike = async (e: React.MouseEvent, itemId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!user) {
+      alert("いいねするにはログインが必要です。");
+      login();
+      return;
+    }
+
+    const likeRef = doc(db, "users", user.uid, "likes", itemId);
+    if (userLikes[itemId]) {
+      await deleteDoc(likeRef);
+    } else {
+      await setDoc(likeRef, { createdAt: new Date() });
+    }
   };
 
   return (
@@ -40,13 +67,10 @@ export default function Home() {
         </Link>
         <div className="flex items-center space-x-4">
           <Link href="/upload" className="bg-red-500 text-white px-4 py-2 rounded font-bold">出品する</Link>
-          
           {user ? (
             <Link href="/mypage" className="text-gray-600 font-medium">マイページ</Link>
           ) : (
-            <button onClick={login} className="text-gray-600 font-medium border border-gray-300 px-3 py-1 rounded hover:bg-gray-50">
-              ログイン
-            </button>
+            <button onClick={login} className="text-gray-600 font-medium border border-gray-300 px-3 py-1 rounded">ログイン</button>
           )}
         </div>
       </header>
@@ -55,10 +79,23 @@ export default function Home() {
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           {items.map((item) => (
             <Link key={item.id} href={`/items/${item.id}`}>
-              <div className="bg-white p-2 rounded shadow hover:shadow-lg transition cursor-pointer">
-                <img src={item.imageUrl} alt={item.name} className="w-full h-40 object-cover rounded" />
-                <h2 className="mt-2 font-bold truncate">{item.name}</h2>
-                <p className="text-red-500 font-bold">¥{item.price.toLocaleString()}</p>
+              <div className="bg-white rounded shadow hover:shadow-lg transition relative overflow-hidden">
+                <img src={item.imageUrl} alt={item.name} className="w-full h-40 object-cover" />
+                <div className="p-2">
+                  <h2 className="font-bold truncate text-sm">{item.name}</h2>
+                  <div className="flex justify-between items-center mt-1">
+                    <p className="text-red-500 font-bold text-lg">¥{item.price.toLocaleString()}</p>
+                    <button 
+                      onClick={(e) => toggleLike(e, item.id)}
+                      className={`text-xl transition ${userLikes[item.id] ? "text-red-500 scale-125" : "text-gray-300"}`}
+                    >
+                      {userLikes[item.id] ? "❤️" : "♡"}
+                    </button>
+                  </div>
+                </div>
+                {item.status === "sold" && (
+                  <div className="absolute top-0 left-0 bg-red-600 text-white px-2 py-1 text-xs font-bold shadow-lg transform -rotate-12">SOLD</div>
+                )}
               </div>
             </Link>
           ))}
