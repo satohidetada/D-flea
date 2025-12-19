@@ -1,6 +1,5 @@
 "use client";
 import { useState, useEffect } from "react";
-// パスを絶対パス指定（@/）に変更して確実に読み込ませます
 import { db, auth, storage } from "@/lib/firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -68,47 +67,17 @@ export default function UploadPage() {
         <form onSubmit={handleUpload} className="space-y-4">
           <div>
             <label className="block text-sm font-bold mb-1">商品画像</label>
-            <input 
-              type="file" 
-              accept="image/*" 
-              onChange={(e) => setImage(e.target.files?.[0] || null)}
-              className="w-full border p-2 rounded"
-              required
-            />
+            <input type="file" accept="image/*" onChange={(e) => setImage(e.target.files?.[0] || null)} className="w-full border p-2 rounded" required />
           </div>
           <div>
             <label className="block text-sm font-bold mb-1">商品名</label>
-            <input 
-              type="text" 
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full border p-2 rounded"
-              required
-            />
+            <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full border p-2 rounded" required />
           </div>
           <div>
             <label className="block text-sm font-bold mb-1">価格 (円)</label>
-            <input 
-              type="number" 
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-              className="w-full border p-2 rounded"
-              required
-            />
+            <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} className="w-full border p-2 rounded" required />
           </div>
-          <div>
-            <label className="block text-sm font-bold mb-1">商品説明</label>
-            <textarea 
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="w-full border p-2 rounded h-24"
-            />
-          </div>
-          <button 
-            type="submit" 
-            disabled={loading}
-            className={`w-full py-3 rounded-lg font-bold text-white transition ${loading ? "bg-gray-400" : "bg-red-600 hover:bg-red-700"}`}
-          >
+          <button type="submit" disabled={loading} className={`w-full py-3 rounded-lg font-bold text-white transition ${loading ? "bg-gray-400" : "bg-red-600 hover:bg-red-700"}`}>
             {loading ? "出品中..." : "出品を確定する"}
           </button>
         </form>
