@@ -47,12 +47,13 @@ export default function ItemDetail() {
   }, [id]);
 
   // ★ コメント送信処理
-  const handleSendComment = async (e: React.FormEvent) => {
+const handleSendComment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return alert("コメントするにはログインが必要です");
     if (!newComment.trim()) return;
 
     try {
+      // 1. コメントを保存
       await addDoc(collection(db, "items", id as string, "comments"), {
         text: newComment,
         senderId: user.uid,
@@ -60,7 +61,20 @@ export default function ItemDetail() {
         senderPhoto: user.photoURL || "",
         createdAt: serverTimestamp(),
       });
-      setNewComment(""); // 入力欄を空にする
+
+      // 2. 出品者への通知を作成（自分が自分にコメントした場合は送らない）
+      if (user.uid !== item.sellerId) {
+        await addDoc(collection(db, "users", item.sellerId, "notifications"), {
+          type: "comment",
+          title: "商品にコメントが届きました",
+          body: `${user.displayName || "誰か"}さんが「${item.name}」にコメントしました。`,
+          link: `/items/${id}`,
+          isRead: false,
+          createdAt: serverTimestamp(),
+        });
+      }
+      
+      setNewComment("");
     } catch (e) {
       alert("送信に失敗しました");
     }
