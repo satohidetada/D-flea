@@ -43,15 +43,15 @@ export default function BuyConfirm() {
         updatedAt: serverTimestamp(),
       }, { merge: true });
 
-      // 3. 通知データを作成
-      await addDoc(collection(db, "notifications"), {
-        userId: item.sellerId,
-        title: "商品が売れました！",
-        body: `「${item.name}」が購入されました。`,
-        link: `/chat/${id}`,
-        isRead: false,
-        createdAt: serverTimestamp(),
-      });
+// 3. 通知データを作成（保存先を /users/出品者ID/notifications に変更）
+await addDoc(collection(db, "users", item.sellerId, "notifications"), {
+  type: "buy", // あとで判別しやすいように追加
+  title: "商品が売れました！",
+  body: `「${item.name}」が購入されました。`,
+  link: `/chat/${id}`,
+  isRead: false,
+  createdAt: serverTimestamp(),
+});
 
       alert("購入が完了しました！");
       router.push(`/chat/${id}`); // 購入後はそのままチャットへ飛ばすのがスムーズです
