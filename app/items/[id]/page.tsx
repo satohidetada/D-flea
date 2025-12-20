@@ -2,10 +2,9 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { db, auth } from "@/lib/firebase/config";
-import { doc, onSnapshot } from "firebase/firestore";
-import PurchaseButton from "@/components/PurchaseButton";
+import { doc, getDoc, deleteDoc } from "firebase/firestore";
 import Link from "next/link";
-import { onAuthStateChanged } from "firebase/auth";
+import Header from "@/components/Header";
 
 export default function ItemDetail() {
   const { id } = useParams();
@@ -14,63 +13,75 @@ export default function ItemDetail() {
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
-    onAuthStateChanged(auth, (u) => setUser(u));
-
-    // リアルタイムで商品情報を監視
-    const unsub = onSnapshot(doc(db, "items", id as string), (doc) => {
-      if (doc.exists()) {
-        setItem({ id: doc.id, ...doc.data() });
-      }
-    });
+    getDoc(doc(db, "items", id as string)).then(s => s.exists() && setItem({ id: s.id, ...s.data() }));
+    const unsub = auth.onAuthStateChanged(u => setUser(u));
     return () => unsub();
   }, [id]);
 
+  const handleDelete = async () => {
+    if (!window.confirm("この出品を削除してもよろしいですか？")) return;
+    try {
+      await deleteDoc(doc(db, "items", id as string));
+      alert("削除しました");
+      router.push("/");
+    } catch (e) {
+      alert("削除に失敗しました");
+    }
+  };
+
   if (!item) return <div className="p-10 text-center text-black">読み込み中...</div>;
 
+  const isSeller = user?.uid === item.sellerId;
+
   return (
-    <div className="max-w-2xl mx-auto p-4 text-black bg-gray-50 min-h-screen">
-      <button onClick={() => router.push("/")} className="text-blue-500 mb-4 inline-block hover:underline">← 戻る</button>
-      
-      <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200">
-        {item.imageUrl && (
-          <div className="relative h-96 w-full bg-gray-100 text-center">
-            <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain mx-auto" />
-          </div>
-        )}
-        
-        <div className="p-6 space-y-6">
-          <div className="flex justify-between items-start">
-            <h1 className="text-3xl font-bold text-gray-800">{item.name}</h1>
-            <p className="text-3xl font-black text-red-600">¥{item.price?.toLocaleString()}</p>
-          </div>
-
-          <div className="border-t pt-4">
-            <h2 className="font-bold text-lg mb-2 text-gray-700">商品の説明</h2>
-            <div className="bg-gray-50 p-4 rounded-xl text-gray-600 whitespace-pre-wrap">
-              {item.description || "説明はありません"}
+    <div className="min-h-screen bg-white text-black pb-20">
+      <Header />
+      <div className="max-w-md mx-auto">
+        <div className="relative aspect-square">
+          <img src={item.imageUrl} className="w-full h-full object-cover" />
+          {item.isSold && (
+            <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+              <span className="text-white font-black text-4xl border-4 border-white p-4 -rotate-12">SOLD OUT</span>
             </div>
+          )}
+        </div>
+
+        <div className="p-6">
+          <h1 className="text-2xl font-bold mb-2">{item.name}</h1>
+          <p className="text-3xl font-black text-red-600 mb-6">¥{item.price?.toLocaleString()}</p>
+          
+          <div className="bg-gray-50 p-4 rounded-2xl mb-8">
+            <h2 className="text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">商品説明</h2>
+            <p className="text-sm leading-relaxed whitespace-pre-wrap">{item.description}</p>
           </div>
 
-          <div className="pt-4">
-            {item.isSold || item.status === "sold" ? (
-              <div className="space-y-4">
-                <div className="w-full bg-gray-400 text-white p-4 rounded-xl font-bold text-center text-xl">
-                  売り切れました
-                </div>
-                {/* 自分が購入者か出品者ならチャットボタンを出す */}
-                {(user?.uid === item.buyerId || user?.uid === item.sellerId) && (
-                  <button 
-                    onClick={() => router.push(`/chat/${id}`)}
-                    className="w-full bg-blue-600 text-white p-4 rounded-xl font-bold text-center text-xl shadow-lg animate-bounce"
-                  >
-                    取引画面（チャット）へ移動
-                  </button>
-                )}
-              </div>
-            ) : (
-              <PurchaseButton itemId={id as string} sellerId={item.sellerId} />
-            )}
-          </div>
+          {isSeller ? (
+            /* 出品者向けのメニュー */
+            <div className="space-y-3">
+              <Link 
+                href={`/items/${id}/edit`} 
+                className="block w-full bg-gray-800 text-white text-center font-bold py-4 rounded-2xl shadow-lg"
+              >
+                商品の編集
+              </Link>
+              <button 
+                onClick={handleDelete}
+                className="w-full bg-white text-red-600 border-2 border-red-50 font-bold py-4 rounded-2xl"
+              >
+                この出品を削除する
+              </button>
+            </div>
+          ) : (
+            /* 購入者向けのボタン */
+            <Link 
+              href={item.isSold ? "#" : `/items/${id}/buy`}
+              className={`block w-full text-center font-bold py-4 rounded-2xl shadow-lg transition ${
+                item.isSold ? "bg-gray-300 cursor-not-allowed" : "bg-red-600 text-white active:scale-95"
+              }`}
+            >
+              {item.isSold ? "売り切れました" : "購入手続きへ"}
+            </Link>
+          )}
         </div>
       </div>
     </div>
