@@ -33,22 +33,13 @@ export default function ProfileEdit() {
       if (user) {
         setName(user.displayName || "");
         setPhotoURL(user.photoURL || "");
-        
-        // Firestoreから追加情報を取得
         const docRef = doc(db, "users", user.uid);
-        try {
-          const docSnap = await getDoc(docRef);
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            setPrefecture(data.prefecture || "東京都");
-            setBio(data.bio || "");
-            // Firestoreに保存されているURLがあればそれを優先
-            if (data.photoURL) {
-              setPhotoURL(data.photoURL);
-            }
-          }
-        } catch (error) {
-          console.error("Firestoreデータ取得失敗:", error);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          setPrefecture(data.prefecture || "東京都");
+          setBio(data.bio || "");
+          if (data.photoURL) setPhotoURL(data.photoURL);
         }
       } else {
         router.push("/login");
@@ -57,62 +48,81 @@ export default function ProfileEdit() {
     return () => unsubscribe();
   }, [router]);
 
-  // 画像アップロード処理
+  /**
+   * 画像をブラウザ側で圧縮・リサイズする関数
+   */
+  const compressImage = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          let width = img.width;
+          let height = img.height;
+
+          // 最大幅を800pxに制限（プロフィール用ならこれで十分）
+          const MAX_SIZE = 800;
+          if (width > height) {
+            if (width > MAX_SIZE) {
+              height *= MAX_SIZE / width;
+              width = MAX_SIZE;
+            }
+          } else {
+            if (height > MAX_SIZE) {
+              width *= MAX_SIZE / height;
+              height = MAX_SIZE;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) return reject("Canvas context error");
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // 画質を0.6 (60%) に落としてJPEGに変換。これで劇的に軽くなる
+          const base64 = canvas.toDataURL("image/jpeg", 0.6);
+          resolve(base64.split(",")[1]); // データ本体のみを抽出
+        };
+      };
+      reader.onerror = (e) => reject(e);
+    });
+  };
+
+  /**
+   * アップロード処理
+   */
   const uploadImage = async (file: File) => {
-    if (file.size > 1024 * 1024 * 5) { // 5MB制限
-      alert("ファイルサイズは5MB以下にしてください");
-      return;
-    }
-
     setUploading(true);
-    const reader = new FileReader();
-    
-    reader.onload = async () => {
-      const base64Data = reader.result?.toString().split(",")[1];
-      if (!base64Data) {
-        setUploading(false);
-        return;
+    try {
+      // 1. 送信する前に圧縮
+      const compressedBase64 = await compressImage(file);
+
+      // 2. 圧縮後のデータを送信
+      const res = await fetch(GAS_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({
+          img: compressedBase64,
+          type: "image/jpeg", // 圧縮後は常にjpeg
+          key: SECRET_API_KEY,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.url) {
+        setPhotoURL(data.url);
+      } else {
+        throw new Error(data.error || "アップロードに失敗しました");
       }
-
-      try {
-        const res = await fetch(GAS_URL, {
-          method: "POST",
-          mode: "cors", // 明示的にCORSを許可
-          headers: {
-            "Content-Type": "text/plain;charset=utf-8",
-          },
-          body: JSON.stringify({
-            img: base64Data,
-            type: file.type,
-            key: SECRET_API_KEY,
-          }),
-        });
-
-        if (!res.ok) throw new Error("サーバーとの通信に失敗しました");
-
-        const data = await res.json();
-        
-        if (data.url) {
-          console.log("アップロード成功:", data.url);
-          // 確実に状態を更新するために、直前の状態に依存しない形式でセット
-          setPhotoURL(() => data.url);
-        } else if (data.error) {
-          throw new Error(data.error);
-        }
-      } catch (e: any) {
-        console.error("アップロードエラー詳細:", e);
-        alert("画像アップロードに失敗しました: " + e.message);
-      } finally {
-        setUploading(false);
-      }
-    };
-
-    reader.onerror = () => {
-      alert("ファイルの読み込みに失敗しました");
+    } catch (e: any) {
+      alert("エラー: " + e.message);
+    } finally {
       setUploading(false);
-    };
-
-    reader.readAsDataURL(file);
+    }
   };
 
   const handleUpdate = async (e: React.FormEvent) => {
@@ -120,15 +130,8 @@ export default function ProfileEdit() {
     const user = auth.currentUser;
     if (!user) return;
     setLoading(true);
-
     try {
-      // 1. Authの更新
-      await updateProfile(user, { 
-        displayName: name, 
-        photoURL: photoURL 
-      });
-
-      // 2. Firestoreの更新
+      await updateProfile(user, { displayName: name, photoURL: photoURL });
       await setDoc(doc(db, "users", user.uid), {
         displayName: name,
         photoURL: photoURL,
@@ -136,11 +139,9 @@ export default function ProfileEdit() {
         bio: bio,
         updatedAt: new Date()
       }, { merge: true });
-
       alert("プロフィールを更新しました！");
       router.push("/mypage");
     } catch (e: any) {
-      console.error("更新エラー:", e);
       alert("更新エラー: " + e.message);
     } finally {
       setLoading(false);
@@ -148,45 +149,33 @@ export default function ProfileEdit() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 text-black">
+    <div className="min-h-screen bg-gray-50 text-black font-sans">
       <Header />
       <main className="p-6 max-w-md mx-auto">
         <h1 className="text-xl font-bold mb-6 tracking-tighter">プロフィール編集</h1>
         <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-gray-100 space-y-8">
           
-          {/* 写真変更セクション */}
           <div className="flex flex-col items-center gap-4">
             <div className="relative w-24 h-24 rounded-full overflow-hidden bg-gray-100 border-4 border-white shadow-sm flex items-center justify-center">
               {photoURL ? (
-                <img 
-                  src={photoURL} 
-                  className="w-full h-full object-cover" 
-                  alt="Profile Preview"
-                  onError={(e) => {
-                    console.error("画像読み込みエラー");
-                    setPhotoURL(""); // エラー時はプレースホルダーに戻す
-                  }}
-                />
+                <img src={photoURL} className="w-full h-full object-cover" alt="Profile" />
               ) : (
                 <div className="text-4xl text-gray-300">👤</div>
               )}
               {uploading && (
                 <div className="absolute inset-0 bg-black/40 flex items-center justify-center text-[10px] text-white font-bold">
-                  UP中...
+                  処理中...
                 </div>
               )}
             </div>
-            <label className="text-xs font-bold text-red-600 bg-red-50 px-4 py-2 rounded-full cursor-pointer hover:bg-red-100 transition inline-block">
-              {uploading ? "処理中..." : "写真を変更"}
+            <label className="text-xs font-bold text-red-600 bg-red-50 px-4 py-2 rounded-full cursor-pointer hover:bg-red-100 transition shadow-sm">
+              {uploading ? "軽量化して送信中..." : "写真を変更"}
               <input 
                 type="file" 
                 className="hidden" 
                 accept="image/*" 
                 disabled={uploading}
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) uploadImage(file);
-                }} 
+                onChange={(e) => e.target.files?.[0] && uploadImage(e.target.files[0])} 
               />
             </label>
           </div>
@@ -194,13 +183,7 @@ export default function ProfileEdit() {
           <form onSubmit={handleUpdate} className="space-y-6">
             <div>
               <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">ニックネーム</label>
-              <input 
-                type="text" 
-                value={name} 
-                onChange={(e) => setName(e.target.value)} 
-                className="w-full border-b py-2 focus:border-red-500 outline-none text-lg bg-transparent" 
-                required 
-              />
+              <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full border-b py-2 focus:border-red-500 outline-none text-lg bg-transparent" required />
             </div>
 
             <div>
@@ -224,11 +207,7 @@ export default function ProfileEdit() {
               />
             </div>
             
-            <button 
-              type="submit" 
-              disabled={loading || uploading} 
-              className="w-full bg-black text-white font-bold py-4 rounded-2xl shadow-xl active:scale-95 transition disabled:bg-gray-300"
-            >
+            <button type="submit" disabled={loading || uploading} className="w-full bg-black text-white font-bold py-4 rounded-2xl shadow-xl active:scale-95 transition disabled:bg-gray-300">
               {loading ? "保存中..." : "変更を確定する"}
             </button>
           </form>
