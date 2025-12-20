@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { db, auth } from "@/lib/firebase/config";
-import { doc, getDoc, deleteDoc } from "firebase/firestore";
+import { doc, getDoc, deleteDoc, setDoc, deleteField, onSnapshot, updateDoc, increment } from "firebase/firestore";
 import Link from "next/link";
 import Header from "@/components/Header";
 
@@ -11,12 +11,43 @@ export default function ItemDetail() {
   const router = useRouter();
   const [item, setItem] = useState<any>(null);
   const [user, setUser] = useState<any>(null);
+  const [isLiked, setIsLiked] = useState(false);
 
   useEffect(() => {
-    getDoc(doc(db, "items", id as string)).then(s => s.exists() && setItem({ id: s.id, ...s.data() }));
-    const unsub = auth.onAuthStateChanged(u => setUser(u));
-    return () => unsub();
+    // 商品情報の取得（リアルタイム監視に切り替え）
+    const unsubItem = onSnapshot(doc(db, "items", id as string), (s) => {
+      if (s.exists()) setItem({ id: s.id, ...s.data() });
+    });
+
+    const unsubAuth = auth.onAuthStateChanged((u) => {
+      setUser(u);
+      if (u) {
+        // 自分がいいねしているかチェック
+        const unsubLike = onSnapshot(doc(db, "users", u.uid, "likes", id as string), (s) => {
+          setIsLiked(s.exists());
+        });
+        return () => unsubLike();
+      }
+    });
+
+    return () => { unsubItem(); unsubAuth(); };
   }, [id]);
+
+  const toggleLike = async () => {
+    if (!user) return alert("いいねするにはログインが必要です");
+    const itemRef = doc(db, "items", id as string);
+    const userLikeRef = doc(db, "users", user.uid, "likes", id as string);
+
+    if (isLiked) {
+      // いいね解除
+      await deleteDoc(userLikeRef);
+      await updateDoc(itemRef, { likeCount: increment(-1) });
+    } else {
+      // いいね登録
+      await setDoc(userLikeRef, { createdAt: new Date() });
+      await updateDoc(itemRef, { likeCount: increment(1) });
+    }
+  };
 
   const handleDelete = async () => {
     if (!window.confirm("この出品を削除してもよろしいですか？")) return;
@@ -37,13 +68,23 @@ export default function ItemDetail() {
     <div className="min-h-screen bg-white text-black pb-20">
       <Header />
       <div className="max-w-md mx-auto">
-        <div className="relative aspect-square">
+        <div className="relative aspect-square bg-gray-100">
           <img src={item.imageUrl} className="w-full h-full object-cover" />
           {item.isSold && (
             <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
               <span className="text-white font-black text-4xl border-4 border-white p-4 -rotate-12">SOLD OUT</span>
             </div>
           )}
+          {/* いいねボタン */}
+          <button 
+            onClick={toggleLike}
+            className="absolute bottom-4 right-4 bg-white/90 backdrop-blur-sm p-3 rounded-full shadow-lg flex items-center gap-2 active:scale-90 transition"
+          >
+            <span className={isLiked ? "text-red-500" : "text-gray-400"}>
+              {isLiked ? "❤️" : "🤍"}
+            </span>
+            <span className="text-xs font-bold">{item.likeCount || 0}</span>
+          </button>
         </div>
 
         <div className="p-6">
@@ -56,23 +97,15 @@ export default function ItemDetail() {
           </div>
 
           {isSeller ? (
-            /* 出品者向けのメニュー */
             <div className="space-y-3">
-              <Link 
-                href={`/items/${id}/edit`} 
-                className="block w-full bg-gray-800 text-white text-center font-bold py-4 rounded-2xl shadow-lg"
-              >
+              <Link href={`/items/${id}/edit`} className="block w-full bg-gray-800 text-white text-center font-bold py-4 rounded-2xl shadow-lg">
                 商品の編集
               </Link>
-              <button 
-                onClick={handleDelete}
-                className="w-full bg-white text-red-600 border-2 border-red-50 font-bold py-4 rounded-2xl"
-              >
+              <button onClick={handleDelete} className="w-full bg-white text-red-600 border-2 border-red-50 font-bold py-4 rounded-2xl">
                 この出品を削除する
               </button>
             </div>
           ) : (
-            /* 購入者向けのボタン */
             <Link 
               href={item.isSold ? "#" : `/items/${id}/buy`}
               className={`block w-full text-center font-bold py-4 rounded-2xl shadow-lg transition ${
