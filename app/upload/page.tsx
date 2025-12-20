@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { db, auth } from "@/lib/firebase/config";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, doc, getDoc } from "firebase/firestore";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import Header from "@/components/Header";
@@ -11,7 +11,7 @@ export default function UploadPage() {
   const [price, setPrice] = useState("");
   const [description, setDescription] = useState("");
   const [image, setImage] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null); // ★ プレビュー用URL
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -30,12 +30,11 @@ export default function UploadPage() {
     return () => unsubscribe();
   }, [router]);
 
-  // ★ 画像が選択された時にプレビューURLを作成する関数
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setImage(file);
-      const url = URL.createObjectURL(file); // ブラウザ一時URL作成
+      const url = URL.createObjectURL(file);
       setPreviewUrl(url);
     }
   };
@@ -49,6 +48,18 @@ export default function UploadPage() {
 
     setLoading(true);
     try {
+      // 1. 最新のユーザープロフィールをFirestoreから直接取得
+      const userRef = doc(db, "users", user.uid);
+      const userSnap = await getDoc(userRef);
+      
+      let userPrefecture = "地域不明"; // デフォルト
+      if (userSnap.exists()) {
+        const data = userSnap.data();
+        // フィールド名が正確に 'prefecture' であることを確認
+        userPrefecture = data.prefecture || "地域不明";
+      }
+
+      // 2. 画像のBase64変換
       const reader = new FileReader();
       const base64Promise = new Promise<string>((resolve) => {
         reader.onload = () => resolve(reader.result?.toString().split(",")[1] || "");
@@ -56,6 +67,7 @@ export default function UploadPage() {
       });
       const base64Data = await base64Promise;
 
+      // 3. GAS経由で画像をアップロード
       const response = await fetch(GAS_URL, {
         method: "POST",
         body: JSON.stringify({
@@ -70,6 +82,7 @@ export default function UploadPage() {
       let result = JSON.parse(text);
       if (result.error) throw new Error(result.error);
 
+      // 4. Firestoreに商品データを保存（確定した都道府県を書き込む）
       await addDoc(collection(db, "items"), {
         name,
         price: Number(price),
@@ -77,13 +90,14 @@ export default function UploadPage() {
         imageUrl: result.url,
         sellerId: user.uid,
         sellerName: user.displayName || "匿名ユーザー",
+        sellerPrefecture: userPrefecture, // ★ ここで変数を渡す
         status: "on_sale",
         isSold: false,
         likeCount: 0,
         createdAt: serverTimestamp(),
       });
 
-      alert("出品が完了しました！");
+      alert(`出品が完了しました！（登録地域: ${userPrefecture}）`);
       router.push("/");
     } catch (error: any) {
       alert("エラー: " + error.message);
@@ -100,7 +114,6 @@ export default function UploadPage() {
           <h1 className="text-xl font-bold mb-6 text-red-600 font-sans">📸 NOMIに出品する</h1>
           
           <form onSubmit={handleUpload} className="space-y-6">
-            {/* 画像選択 & プレビューエリア */}
             <div>
               <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">商品画像</label>
               <div className="relative w-full aspect-square rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 overflow-hidden flex items-center justify-center group">
