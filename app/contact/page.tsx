@@ -20,10 +20,12 @@ export default function ContactPage() {
 
         <div className="bg-white shadow-sm border border-gray-100 rounded-3xl p-6">
           <form 
-            action={FORMSPREE_URL} 
-            method="POST" 
-            className="space-y-6"
-          >
+  action={FORMSPREE_URL} 
+  method="POST" 
+  className="space-y-6"
+>
+  {/* ★ この1行を追加（valueを自分のアプリのURLに変更してください） */}
+  <input type="hidden" name="_next" value="https://your-app-name.vercel.app/" />
             {/* お名前 */}
             <div>
               <label htmlFor="name" className="block text-[10px] font-bold text-gray-400 uppercase ml-1 mb-1 tracking-widest">
