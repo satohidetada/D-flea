@@ -46,37 +46,46 @@ export default function ItemDetail() {
     return () => { unsubItem(); unsubComments(); unsubAuth(); };
   }, [id]);
 
-  // ★ コメント送信処理
-const handleSendComment = async (e: React.FormEvent) => {
+// ★ コメント送信処理（修正版）
+  const handleSendComment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return alert("コメントするにはログインが必要です");
     if (!newComment.trim()) return;
 
+    const commentText = newComment; // メッセージを一時保存
+    setNewComment(""); // 送信ボタンを押した瞬間に中身を消す（UX向上）
+
     try {
       // 1. コメントを保存
       await addDoc(collection(db, "items", id as string, "comments"), {
-        text: newComment,
+        text: commentText,
         senderId: user.uid,
         senderName: user.displayName || "匿名ユーザー",
         senderPhoto: user.photoURL || "",
         createdAt: serverTimestamp(),
       });
 
-      // 2. 出品者への通知を作成（自分が自分にコメントした場合は送らない）
+      // 2. 通知作成は別の try-catch で囲む（ここが失敗してもユーザーには知らせない）
       if (user.uid !== item.sellerId) {
-        await addDoc(collection(db, "users", item.sellerId, "notifications"), {
-          type: "comment",
-          title: "商品にコメントが届きました",
-          body: `${user.displayName || "誰か"}さんが「${item.name}」にコメントしました。`,
-          link: `/items/${id}`,
-          isRead: false,
-          createdAt: serverTimestamp(),
-        });
+        try {
+          await addDoc(collection(db, "users", item.sellerId, "notifications"), {
+            type: "comment",
+            title: "商品にコメントが届きました",
+            body: `${user.displayName || "誰か"}さんが「${item.name}」にコメントしました。`,
+            link: `/items/${id}`,
+            isRead: false,
+            createdAt: serverTimestamp(),
+          });
+        } catch (notifError) {
+          // 通知の保存に失敗しても、コンソールに記録するだけでユーザーには黙っておく
+          console.error("Notification failed but comment was sent:", notifError);
+        }
       }
-      
-      setNewComment("");
     } catch (e) {
-      alert("送信に失敗しました");
+      // コメント保存そのものが失敗した場合のみ、ユーザーにアラートを出し、文字を戻す
+      console.error("Final comment error:", e);
+      alert("送信に失敗しました。ネット接続を確認してください。");
+      setNewComment(commentText); 
     }
   };
 
