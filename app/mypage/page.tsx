@@ -2,17 +2,19 @@
 import { useEffect, useState } from "react";
 import { auth, db } from "@/lib/firebase/config";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
+import { collection, query, where, getDocs, orderBy, doc, getDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Header from "@/components/Header";
 
 export default function MyPage() {
   const [user, setUser] = useState<any>(null);
+  const [profile, setProfile] = useState<any>(null); // ★ 追加：Firestoreのユーザー詳細
   const [sellingItems, setSellingItems] = useState<any[]>([]);
   const [purchasedItems, setPurchasedItems] = useState<any[]>([]);
   const [likedItems, setLikedItems] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState("selling");
+  const [loading, setLoading] = useState(true); // ★ 読み込み状態管理
   const router = useRouter();
 
   useEffect(() => {
@@ -20,17 +22,23 @@ export default function MyPage() {
       if (u) {
         setUser(u);
         
-        // 1. 出品した商品
+        // 1. Firestoreから追加プロフィール情報を取得 (都道府県・自己紹介)
+        const profileSnap = await getDoc(doc(db, "users", u.uid));
+        if (profileSnap.exists()) {
+          setProfile(profileSnap.data());
+        }
+
+        // 2. 出品した商品
         const qSelling = query(collection(db, "items"), where("sellerId", "==", u.uid), orderBy("createdAt", "desc"));
         const snapSelling = await getDocs(qSelling);
         setSellingItems(snapSelling.docs.map(doc => ({ id: doc.id, ...doc.data() })));
 
-        // 2. 購入（取引済）した商品
+        // 3. 購入（取引済）した商品
         const qPurchased = query(collection(db, "items"), where("buyerId", "==", u.uid), orderBy("soldAt", "desc"));
         const snapPurchased = await getDocs(qPurchased);
         setPurchasedItems(snapPurchased.docs.map(doc => ({ id: doc.id, ...doc.data() })));
 
-        // 3. いいねした商品
+        // 4. いいねした商品
         const qLikes = query(collection(db, "users", u.uid, "likes"));
         const snapLikes = await getDocs(qLikes);
         const likedItemIds = snapLikes.docs.map(d => d.id);
@@ -44,6 +52,7 @@ export default function MyPage() {
           );
           setLikedItems(itemsData.filter(i => i !== null));
         }
+        setLoading(false);
       } else {
         router.push("/");
       }
@@ -58,10 +67,10 @@ export default function MyPage() {
     }
   };
 
-  if (!user) return <div className="p-10 text-center text-black">読み込み中...</div>;
+  if (loading) return <div className="p-10 text-center text-black font-bold">読み込み中...</div>;
 
   const ItemCard = ({ item }: { item: any }) => (
-    <Link href={`/items/${item.id}`} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 block">
+    <Link href={`/items/${item.id}`} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 block transition active:scale-95">
       <div className="relative aspect-square">
         <img src={item.imageUrl} className="w-full h-full object-cover" alt="" />
         {item.isSold && (
@@ -69,7 +78,7 @@ export default function MyPage() {
         )}
       </div>
       <div className="p-3">
-        <p className="text-xs text-gray-500 truncate">{item.name}</p>
+        <p className="text-[10px] text-gray-500 truncate">{item.name}</p>
         <p className="font-bold text-red-600">¥{item.price?.toLocaleString()}</p>
       </div>
     </Link>
@@ -81,7 +90,7 @@ export default function MyPage() {
       <main className="max-w-2xl mx-auto p-4 pb-20">
         
         {/* プロフィールセクション */}
-        <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 flex flex-col items-center mb-6">
+        <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-gray-100 flex flex-col items-center mb-6">
           <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-white mb-4 bg-gray-100 shadow-md">
             {user.photoURL ? (
               <img src={user.photoURL} className="w-full h-full object-cover" alt="" />
@@ -90,7 +99,19 @@ export default function MyPage() {
             )}
           </div>
           <h2 className="text-xl font-bold mb-1">{user.displayName || "ユーザー"}</h2>
-          <p className="text-xs text-gray-400 mb-6">{user.email}</p>
+          
+          {/* ★ 追加：都道府県表示 */}
+          <div className="flex items-center gap-1 text-gray-400 text-xs mb-3 font-bold">
+            <span className="text-red-500">📍</span>
+            <span>{profile?.prefecture || "活動エリア未設定"}</span>
+          </div>
+
+          {/* ★ 追加：自己紹介表示 */}
+          {profile?.bio && (
+            <p className="text-xs text-gray-600 text-center leading-relaxed mb-6 px-4 italic">
+              {profile.bio}
+            </p>
+          )}
           
           <div className="flex gap-2 w-full max-w-xs">
             <Link href="/profile" className="flex-1 bg-gray-900 text-white text-center py-3 rounded-2xl text-xs font-bold active:scale-95 transition">
@@ -102,14 +123,14 @@ export default function MyPage() {
           </div>
         </div>
 
-        {/* サポートボタン（目立つ位置に配置） */}
+        {/* サポートボタン */}
         <Link 
           href="/contact" 
           className="flex justify-between items-center p-5 bg-white rounded-2xl text-sm font-bold shadow-sm border border-red-50 mb-6 hover:bg-red-50 transition active:scale-95"
         >
           <div className="flex items-center gap-3">
             <span className="text-xl">💡</span>
-            <span className="text-gray-700">運営への要望・不具合報告</span>
+            <span className="text-gray-700 font-bold tracking-tighter">運営への要望・不具合報告</span>
           </div>
           <span className="text-red-400">›</span>
         </Link>
@@ -145,7 +166,7 @@ export default function MyPage() {
         {((activeTab === "selling" && sellingItems.length === 0) ||
           (activeTab === "purchased" && purchasedItems.length === 0) ||
           (activeTab === "liked" && likedItems.length === 0)) && (
-          <div className="py-20 text-center text-gray-400 text-sm bg-white rounded-3xl border border-dashed border-gray-200">
+          <div className="py-20 text-center text-gray-400 text-sm bg-white rounded-b-3xl border border-dashed border-gray-200">
             表示する商品がありません
           </div>
         )}
