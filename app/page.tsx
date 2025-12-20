@@ -20,6 +20,7 @@ export default function Home() {
   const [filteredItems, setFilteredItems] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPrefs, setSelectedPrefs] = useState<string[]>([]);
+  const [showOnlyLikes, setShowOnlyLikes] = useState(false); // ★ いいね絞り込み状態
   const [sortBy, setSortBy] = useState("newest");
   const [user, setUser] = useState<any>(null);
   const [userLikes, setUserLikes] = useState<string[]>([]);
@@ -39,6 +40,7 @@ export default function Home() {
         return () => unsubLikes();
       } else {
         setUserLikes([]);
+        setShowOnlyLikes(false); // ログアウトしたら解除
       }
     });
     return () => { unsubItems(); unsubAuth(); };
@@ -47,6 +49,7 @@ export default function Home() {
   useEffect(() => {
     let result = [...items];
 
+    // 1. キーワード検索
     if (searchQuery) {
       result = result.filter(item => 
         item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -54,10 +57,17 @@ export default function Home() {
       );
     }
 
+    // 2. 都道府県フィルター
     if (selectedPrefs.length > 0) {
       result = result.filter(item => selectedPrefs.includes(item.sellerPrefecture));
     }
 
+    // 3. ★ いいね絞り込み
+    if (showOnlyLikes) {
+      result = result.filter(item => userLikes.includes(item.id));
+    }
+
+    // 4. 並び替え
     result.sort((a, b) => {
       if (sortBy === "newest") return (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0);
       if (sortBy === "price_asc") return a.price - b.price;
@@ -67,7 +77,7 @@ export default function Home() {
     });
 
     setFilteredItems(result);
-  }, [searchQuery, selectedPrefs, sortBy, items]);
+  }, [searchQuery, selectedPrefs, showOnlyLikes, sortBy, items, userLikes]);
 
   const togglePref = (pref: string) => {
     setSelectedPrefs(prev => 
@@ -93,7 +103,6 @@ export default function Home() {
     <div className="min-h-screen bg-gray-50 pb-20 text-black">
       <Header />
       
-      {/* 🛠️ ここが「検索バー」の下に新しく追加されるフィルターセクションです */}
       <div className="sticky top-14 z-20 bg-white border-b border-gray-100 shadow-sm">
         <div className="max-w-4xl mx-auto p-3 space-y-3">
           
@@ -123,10 +132,26 @@ export default function Home() {
 
           <div className="flex items-center gap-2 overflow-hidden">
             <div className="flex gap-2 overflow-x-auto no-scrollbar py-1 shrink-0 max-w-full">
+              {/* ★ いいね済みフィルターボタン */}
+              {user && (
+                <button 
+                  onClick={() => setShowOnlyLikes(!showOnlyLikes)}
+                  className={`px-3 py-1.5 rounded-full text-[10px] font-bold whitespace-nowrap transition-all border ${
+                    showOnlyLikes 
+                      ? "bg-red-50 border-red-200 text-red-600 shadow-sm" 
+                      : "bg-white border-gray-200 text-gray-500"
+                  }`}
+                >
+                  {showOnlyLikes ? "❤️ いいね済み" : "🤍 いいね済み"}
+                </button>
+              )}
+
+              <div className="w-[1px] h-4 bg-gray-200 self-center mx-1" />
+
               <button 
-                onClick={() => setSelectedPrefs([])}
+                onClick={() => { setSelectedPrefs([]); setShowOnlyLikes(false); }}
                 className={`px-3 py-1.5 rounded-full text-[10px] font-bold whitespace-nowrap transition-colors ${
-                  selectedPrefs.length === 0 ? "bg-red-600 text-white" : "bg-gray-100 text-gray-500"
+                  (selectedPrefs.length === 0 && !showOnlyLikes) ? "bg-red-600 text-white" : "bg-gray-100 text-gray-500"
                 }`}
               >
                 すべて
@@ -157,11 +182,6 @@ export default function Home() {
               <Link href={`/items/${item.id}`} className="bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100 block h-full active:scale-[0.98] transition">
                 <div className="aspect-square bg-gray-50 relative">
                   <img src={item.imageUrl} className="w-full h-full object-cover" alt={item.name} loading="lazy" />
-                  {item.sellerPrefecture && (
-                    <div className="absolute top-2 right-2 bg-black/40 backdrop-blur-md text-white text-[8px] px-2 py-0.5 rounded-full">
-                      📍 {item.sellerPrefecture}
-                    </div>
-                  )}
                   {item.isSold && (
                     <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
                       <span className="bg-red-600 text-white text-[10px] font-black px-3 py-1 rounded-sm rotate-[-10deg] shadow-lg">SOLD OUT</span>
@@ -189,8 +209,10 @@ export default function Home() {
 
       {filteredItems.length === 0 && (
         <div className="text-center py-32 text-gray-300">
-          <p className="text-5xl mb-4">🏜️</p>
-          <p className="text-xs font-bold">条件に合う商品が見つかりませんでした</p>
+          <p className="text-5xl mb-4">{showOnlyLikes ? "❤️" : "🏜️"}</p>
+          <p className="text-xs font-bold">
+            {showOnlyLikes ? "いいねした商品はまだありません" : "条件に合う商品が見つかりませんでした"}
+          </p>
         </div>
       )}
 
