@@ -13,7 +13,7 @@ export default function MyPage() {
   const [sellingItems, setSellingItems] = useState<any[]>([]);
   const [purchasedItems, setPurchasedItems] = useState<any[]>([]);
   const [likedItems, setLikedItems] = useState<any[]>([]);
-  const [chats, setChats] = useState<any[]>([]); // ★ 追加：チャット一覧
+  const [chats, setChats] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState("selling");
   const [loading, setLoading] = useState(true);
   const router = useRouter();
@@ -23,7 +23,7 @@ export default function MyPage() {
       if (u) {
         setUser(u);
         
-        // 1. プロフィール情報取得
+        // 1. プロフィール情報取得 (ここを最優先にする)
         const profileSnap = await getDoc(doc(db, "users", u.uid));
         if (profileSnap.exists()) {
           setProfile(profileSnap.data());
@@ -53,7 +53,7 @@ export default function MyPage() {
           setLikedItems(itemsData.filter(i => i !== null));
         }
 
-        // 5. ★ 取引チャット一覧の取得 (自分が出品者 or 購入者のもの)
+        // 5. 取引チャット一覧
         try {
           const qChats = query(
             collection(db, "chats"),
@@ -68,7 +68,7 @@ export default function MyPage() {
 
         setLoading(false);
       } else {
-        router.push("/");
+        router.push("/login");
       }
     });
     return () => unsubscribe();
@@ -98,7 +98,6 @@ export default function MyPage() {
     </Link>
   );
 
-  // ★ チャット用カードコンポーネント
   const ChatCard = ({ chat }: { chat: any }) => (
     <Link href={`/chat/${chat.id}`} className="flex items-center gap-4 bg-white p-4 rounded-2xl border border-gray-100 mb-3 active:scale-95 transition shadow-sm">
       <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center text-xl shadow-inner">💬</div>
@@ -120,20 +119,29 @@ export default function MyPage() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 text-black">
+    <div className="min-h-screen bg-gray-50 text-black font-sans">
       <Header />
       <main className="max-w-2xl mx-auto p-4 pb-20">
         
         {/* プロフィールセクション */}
         <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-gray-100 flex flex-col items-center mb-6">
           <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-white mb-4 bg-gray-100 shadow-md">
-            {user.photoURL ? (
-              <img src={user.photoURL} className="w-full h-full object-cover" alt="" />
+            {/* 修正点: Firestoreから取得した profile.photoURL を最優先で表示する */}
+            {(profile?.photoURL || user?.photoURL) ? (
+              <img 
+                src={profile?.photoURL || user?.photoURL} 
+                className="w-full h-full object-cover" 
+                alt="Profile" 
+                // キャッシュ回避のために読み込み失敗時に少し工夫する設定も可能
+              />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-gray-300 text-4xl">👤</div>
             )}
           </div>
-          <h2 className="text-xl font-bold mb-1">{user.displayName || "ユーザー"}</h2>
+          
+          {/* 修正点: 表示名も Firestore のデータを優先 */}
+          <h2 className="text-xl font-bold mb-1">{profile?.displayName || user?.displayName || "ユーザー"}</h2>
+          
           <div className="flex items-center gap-1 text-gray-400 text-xs mb-3 font-bold">
             <span className="text-red-500">📍</span>
             <span>{profile?.prefecture || "活動エリア未設定"}</span>
@@ -150,7 +158,7 @@ export default function MyPage() {
         <div className="flex border-b border-gray-200 mb-6 bg-white rounded-t-2xl px-2">
           {[
             { id: "selling", label: "出品", count: sellingItems.length },
-            { id: "chat", label: "取引中", count: chats.filter(c => c.status !== "closed").length }, // ★追加
+            { id: "chat", label: "取引中", count: chats.filter(c => c.status !== "closed").length },
             { id: "purchased", label: "取引済", count: purchasedItems.length },
             { id: "liked", label: "いいね", count: likedItems.length }
           ].map(tab => (
