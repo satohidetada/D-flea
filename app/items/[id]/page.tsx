@@ -123,7 +123,7 @@ export default function ItemDetail() {
   if (!item) return <div className="p-10 text-center text-black font-bold">読み込み中...</div>;
   
   const isSeller = user?.uid === item.sellerId;
-  const isBuyer = user?.uid === item.buyerId; // 追加: 購入者かどうか
+  const isBuyer = user?.uid === item.buyerId; 
   const displayImages = item.imageUrls || [item.imageUrl];
 
   return (
@@ -131,7 +131,8 @@ export default function ItemDetail() {
       <Header />
       <div className="max-w-md mx-auto bg-white min-h-screen shadow-xl">
         
-        <div className="relative aspect-square bg-gray-100 group">
+        {/* 画像エリア：SOLDOUTでもスクロール可能 */}
+        <div className="relative aspect-square bg-gray-100 group overflow-hidden">
           <div 
             ref={scrollRef}
             className="flex w-full h-full overflow-x-auto snap-x snap-mandatory no-scrollbar scroll-smooth"
@@ -148,6 +149,13 @@ export default function ItemDetail() {
             ))}
           </div>
 
+          {/* SOLDOUTラベルのみを上に重ねる */}
+          {item.isSold && (
+            <div className="absolute top-0 left-0 bg-red-600 text-white text-xl font-black px-6 py-2 shadow-xl z-20 rounded-br-3xl tracking-wider">
+              SOLD OUT
+            </div>
+          )}
+
           {displayImages.length > 1 && (
             <>
               <button onClick={() => scroll("left")} className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-sm transition-opacity opacity-0 group-hover:opacity-100 z-10">
@@ -160,12 +168,6 @@ export default function ItemDetail() {
                 {displayImages.length}枚
               </div>
             </>
-          )}
-
-          {item.isSold && (
-            <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-20">
-              <span className="text-white font-black text-4xl border-4 border-white p-4 -rotate-12">SOLD OUT</span>
-            </div>
           )}
           
           <button 
@@ -184,16 +186,18 @@ export default function ItemDetail() {
             <span>取引場所: {seller?.prefecture || "未設定"}</span>
           </div>
           <p className="text-3xl font-black text-red-600 mb-6">¥{item.price?.toLocaleString()}</p>
+          
           <div className="bg-gray-50 p-4 rounded-2xl mb-6">
             <h2 className="text-[10px] font-bold text-gray-400 mb-2 uppercase tracking-widest">商品説明</h2>
             <p className="text-sm leading-relaxed whitespace-pre-wrap">{item.description}</p>
           </div>
 
-          {/* --- ボタンエリアの修正 --- */}
           <div className="space-y-3">
+            <p className="text-[10px] text-center text-gray-400 font-bold mb-2">
+              ⚠️ 決済・配送機能はありません。直接会って現金支払いです。
+            </p>
             {isSeller ? (
               <>
-                {/* 出品者かつ売却済みの場合は取引画面へのボタンも出す */}
                 {item.isSold && (
                   <Link href={`/chat/${id}`} className="block w-full bg-green-600 text-white text-center font-bold py-4 rounded-2xl shadow-lg active:scale-95 transition">
                     取引画面（チャット）へ
@@ -203,12 +207,10 @@ export default function ItemDetail() {
                 <button onClick={handleDelete} className="w-full bg-white text-red-600 border-2 border-red-50 font-bold py-4 rounded-2xl">この出品を削除する</button>
               </>
             ) : isBuyer ? (
-              /* 購入者の場合は取引画面へのボタンを表示 */
               <Link href={`/chat/${id}`} className="block w-full bg-green-600 text-white text-center font-bold py-4 rounded-2xl shadow-lg active:scale-95 transition">
                 取引画面（チャット）へ戻る
               </Link>
             ) : (
-              /* 第三者の場合 */
               <Link 
                 href={item.isSold ? "#" : `/items/${id}/buy`}
                 className={`block w-full text-center font-bold py-4 rounded-2xl shadow-lg transition ${
@@ -219,7 +221,6 @@ export default function ItemDetail() {
               </Link>
             )}
           </div>
-          {/* --- ここまで修正 --- */}
 
           <div className="mt-10 p-5 bg-gray-50 rounded-[2rem] border border-gray-100 shadow-sm">
             <h3 className="text-[10px] font-bold text-gray-400 mb-4 tracking-widest uppercase">出品者プロフィール</h3>
