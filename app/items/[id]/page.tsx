@@ -194,7 +194,7 @@ export default function ItemDetail() {
 
           <div className="space-y-3">
             <p className="text-[10px] text-center text-gray-400 font-bold mb-2">
-              ⚠️ 決済・配送機能はありません。直接会って現金支払いです。
+              ⚠️ 決済・配送機能はありません。
             </p>
             {isSeller ? (
               <>
