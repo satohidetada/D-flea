@@ -4,7 +4,7 @@ export default function TermsPage() {
   return (
     <div className="min-h-screen bg-white text-gray-800 p-6 pb-20">
       <div className="max-w-2xl mx-auto">
-        <h1 className="text-2xl font-bold mb-8 border-b-2 border-orange-500 pb-2">利用規約</h1>
+        <h1 className="text-2xl font-bold mb-8 border-b-2 border-red-500 pb-2 text-red-600">利用規約</h1>
         
         <div className="space-y-6 text-sm leading-relaxed">
           <section>
@@ -13,28 +13,41 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="font-bold text-lg mb-2">第2条（自己責任の原則）</h2>
-            <p>本サービスは売買の場を提供する掲示板であり、ユーザー間の取引、メッセージのやり取り、トラブルについて、運営者は一切の責任を負いません。すべて当事者間で解決するものとします。</p>
+            <h2 className="font-bold text-lg mb-2">第2条（売買契約と自己責任）</h2>
+            <p>1. 本サービスは売買の場を提供するものであり、購入者が購入手続きを完了した時点で、ユーザー間に売買契約が成立するものとします。</p>
+            <p className="mt-2 text-red-600 font-bold">2. 運営者は契約の当事者ではなく、ユーザー間の取引、発送、メッセージのやり取り、トラブルについて一切の責任を負いません。商品の不備や返品などはすべて当事者間で直接解決するものとします。</p>
+            <p className="mt-2">3. 運営者は、出品された商品の品質、安全性、適法性、および真実性について一切保証しません。</p>
           </section>
 
           <section>
             <h2 className="font-bold text-lg mb-2">第3条（禁止事項）</h2>
             <p>以下の行為を禁止します。違反した場合、予告なく投稿削除やアカウント停止を行うことがあります。</p>
             <ul className="list-disc ml-5 mt-2 space-y-1">
-              <li>法令、公序良俗に反する商品の出品</li>
-              <li>虚偽の内容を含む投稿、または他者への誹謗中傷</li>
-              <li>不正アクセスやサーバーに過度な負担をかける行為</li>
+              <li>法令、公序良俗に反する商品の出品（盗品、危険物、公序良俗に反する物品など）</li>
+              <li>他人の知的財産権（著作権、商標権等）を侵害する物品の出品（海賊版、偽ブランド品等）</li>
+              <li>虚偽の内容を含む投稿、または他者への誹謗中傷、迷惑行為</li>
+              <li>本サービス外での直接取引を持ちかける行為</li>
               <li>その他、運営が不適切と判断する行為</li>
             </ul>
           </section>
 
           <section>
-            <h2 className="font-bold text-lg mb-2">第4条（規約の変更）</h2>
-            <p>運営者は、必要に応じて本規約を変更できるものとします。変更後の規約は本ページに掲載した時点から効力を生じます。</p>
+            <h2 className="font-bold text-lg mb-2">第4条（反社会的勢力の排除）</h2>
+            <p>ユーザーは、自らが暴力団等の反社会的勢力に該当しないこと、および将来にわたっても該当しないことを表明し、保証するものとします。違反が判明した場合、直ちに利用を停止します。</p>
+          </section>
+
+          <section>
+            <h2 className="font-bold text-lg mb-2">第5条（サービスの停止・変更）</h2>
+            <p>運営者は、システムの保守、点検、または障害等により、ユーザーに事前通知することなく本サービスを停止、変更、または終了できるものとします。</p>
+          </section>
+
+          <section>
+            <h2 className="font-bold text-lg mb-2">第6条（規約の変更）</h2>
+            <p>運営者は、必要に応じて本規約を変更できるものとします。変更後の規約は本ページに掲載した時点から効力を生じ、ユーザーが変更後に本サービスを利用した場合、同意したものとみなします。</p>
           </section>
 
           <div className="mt-10 pt-10 border-t text-center">
-            <Link href="/mypage" className="text-orange-500 font-bold hover:underline">
+            <Link href="/mypage" className="text-red-500 font-bold hover:underline">
               マイページに戻る
             </Link>
           </div>
