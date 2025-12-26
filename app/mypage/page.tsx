@@ -187,16 +187,31 @@ function MyPageContent() {
             <button onClick={handleLogout} className="flex-1 border border-gray-200 text-gray-400 py-3 rounded-2xl text-xs font-bold active:scale-95 transition">ログアウト</button>
           </div>
 
-          {/* 💡 復活させた問い合わせリンク */}
           <Link 
             href="/contact" 
-            className="w-full max-w-xs bg-gray-50 text-gray-500 text-center py-3 rounded-2xl text-[10px] font-bold border border-gray-100 active:scale-95 transition flex items-center justify-center gap-2"
+            className="w-full max-w-xs bg-gray-50 text-gray-500 text-center py-3 rounded-2xl text-[10px] font-bold border border-gray-100 active:scale-95 transition flex items-center justify-center gap-2 mb-6"
           >
             <span>💡</span> アプリへのご意見・ご要望はこちら
           </Link>
-        </div>
 
-        {/* タブ一覧 */}
+          <div className="w-full max-w-xs grid grid-cols-2 gap-2">
+            <Link 
+              href="/terms" 
+              className="bg-gray-100 text-gray-600 text-center py-2.5 rounded-xl text-[10px] font-bold active:scale-95 transition border border-gray-200"
+            >
+              利用規約
+            </Link>
+            <Link 
+              href="/privacy" 
+              className="bg-gray-100 text-gray-600 text-center py-2.5 rounded-xl text-[10px] font-bold active:scale-95 transition border border-gray-200"
+            >
+              プライバシー
+            </Link>
+          </div>
+          
+          <p className="text-[9px] text-gray-300 mt-4 font-bold tracking-widest uppercase">© 2025 my-flea-app</p>
+        </div> 
+
         <div className="flex border-b border-gray-100 mb-6 bg-white rounded-t-[2rem] px-2 overflow-x-auto no-scrollbar">
           {[
             { id: "selling", label: "出品中", count: sellingItems.filter(i => i.status !== "completed").length },
@@ -270,7 +285,6 @@ function MyPageContent() {
             </div>
           )}
 
-          {/* 空の状態表示 */}
           {((activeTab === "selling" && sellingItems.length === 0) || (activeTab === "chat" && chats.filter(c => c.status !== "closed").length === 0) || (activeTab === "purchased" && purchasedItems.length === 0) || (activeTab === "review" && reviews.length === 0) || (activeTab === "liked" && likedItems.length === 0)) && (
             <div className="py-20 text-center text-gray-300 text-xs bg-white rounded-[2rem] border border-dashed border-gray-100 font-bold">データがありません</div>
           )}
@@ -280,7 +294,6 @@ function MyPageContent() {
   );
 }
 
-// 最終的なエクスポート
 export default function MyPage() {
   return (
     <Suspense fallback={<div className="p-10 text-center text-black font-bold">読み込み中...</div>}>
