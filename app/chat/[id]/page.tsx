@@ -5,7 +5,6 @@ import { db, auth } from "@/lib/firebase/config";
 import { collection, doc, query, orderBy, onSnapshot, addDoc, serverTimestamp, getDoc, updateDoc } from "firebase/firestore";
 import { onAuthStateChanged, User } from "firebase/auth";
 
-// GASの設定
 const GAS_URL = "https://script.google.com/macros/s/AKfycby-ey-a-JVlePfdJiCRO_aSNfMgUYnwahAaYKyV4909p7Wq4LvbgEu2cplNTjlsdLkA/exec";
 const SECRET_API_KEY = "my-secret-token-777";
 
@@ -19,7 +18,6 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // --- 追加: 評価用ステート ---
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [rating, setRating] = useState(5);
   const [reviewComment, setReviewComment] = useState("");
@@ -122,28 +120,43 @@ export default function ChatPage() {
     });
   };
 
-  // --- 追加: 評価を投稿して取引を完了する ---
+  // --- 修正: お互いに評価するロジック ---
   const handleSubmitReview = async () => {
     if (!user || !chatInfo) return;
     setLoading(true);
+
+    const isBuyer = user.uid === chatInfo.buyerId;
+    const targetUserId = isBuyer ? chatInfo.sellerId : chatInfo.buyerId;
+    const targetItemId = chatInfo.itemId || id;
+
     try {
-      // 1. 相手（出品者）の評価コレクションに保存
-      await addDoc(collection(db, "users", chatInfo.sellerId, "reviews"), {
+      // 1. 相手の評価コレクションに保存
+      await addDoc(collection(db, "users", targetUserId, "reviews"), {
         fromId: user.uid,
         fromName: user.displayName || "匿名ユーザー",
         rating: rating,
         comment: reviewComment,
-        itemId: chatInfo.itemId,
+        itemId: targetItemId,
         itemName: chatInfo.itemName,
         createdAt: serverTimestamp(),
       });
 
-      // 2. チャットと商品のステータスを更新
-      await updateDoc(doc(db, "chats", id as string), { status: "closed" });
-      await updateDoc(doc(db, "items", chatInfo.itemId), { status: "completed" });
+      // 2. ステータスの決定
+      // 購入者が評価 -> 出品者の評価待ちへ。 出品者が評価 -> 取引完了へ。
+      const nextStatus = isBuyer ? "buyer_reviewed" : "closed";
 
-      // 3. 出品者へ「評価が届きました」通知
-      await addDoc(collection(db, "users", chatInfo.sellerId, "notifications"), {
+      await updateDoc(doc(db, "chats", id as string), { 
+        status: nextStatus,
+        updatedAt: serverTimestamp()
+      });
+
+      // 最終完了時のみ商品のステータスを更新
+      if (nextStatus === "closed") {
+        await updateDoc(doc(db, "items", targetItemId as string), { status: "completed" });
+      }
+
+      // 3. 相手へ通知
+      await addDoc(collection(db, "users", targetUserId, "notifications"), {
         type: "review",
         title: "評価が届きました！",
         body: `「${chatInfo.itemName}」の取引相手から評価が届きました。`,
@@ -152,11 +165,12 @@ export default function ChatPage() {
         createdAt: serverTimestamp(),
       });
 
-      alert("取引が完了しました！評価ありがとうございます。");
+      alert(isBuyer ? "受取評価を送信しました。相手からの評価を待ちましょう。" : "取引がすべて完了しました！");
       setShowReviewModal(false);
-    } catch (err) {
+      setReviewComment("");
+    } catch (err: any) {
       console.error(err);
-      alert("処理中にエラーが発生しました。");
+      alert("エラーが発生しました: " + err.message);
     } finally {
       setLoading(false);
     }
@@ -166,16 +180,24 @@ export default function ChatPage() {
     <div className="flex flex-col h-screen bg-gray-50 text-black">
       <header className="bg-white p-4 shadow-sm font-bold flex items-center border-b justify-between sticky top-0 z-10">
         <div className="flex items-center">
-          <button onClick={() => router.push(`/items/${id}`)} className="mr-4 text-gray-500 text-xl active:scale-90 transition">←</button>
+          <button onClick={() => router.back()} className="mr-4 text-gray-500 text-xl active:scale-90 transition">←</button>
           <span className="text-base truncate max-w-[150px]">{chatInfo?.itemName || "取引チャット"}</span>
         </div>
-        {user?.uid === chatInfo?.buyerId && chatInfo?.status !== "closed" && (
-          <button 
-            onClick={() => setShowReviewModal(true)} 
-            className="bg-red-600 text-white text-xs px-3 py-2 rounded-lg font-bold active:scale-95 transition"
-          >
-            受取評価する
-          </button>
+        
+        {/* ボタンの出し分けロジック修正 */}
+        {chatInfo?.status !== "closed" && (
+          <>
+            {user?.uid === chatInfo?.buyerId && chatInfo?.status === "active" && (
+              <button onClick={() => setShowReviewModal(true)} className="bg-red-600 text-white text-xs px-3 py-2 rounded-lg font-bold active:scale-95 transition">
+                受取評価する
+              </button>
+            )}
+            {user?.uid === chatInfo?.sellerId && chatInfo?.status === "buyer_reviewed" && (
+              <button onClick={() => setShowReviewModal(true)} className="bg-blue-600 text-white text-xs px-3 py-2 rounded-lg font-bold active:scale-95 transition">
+                購入者を評価
+              </button>
+            )}
+          </>
         )}
       </header>
       
@@ -200,6 +222,13 @@ export default function ChatPage() {
             </div>
           );
         })}
+
+        {/* ステータスメッセージの追加 */}
+        {chatInfo?.status === "buyer_reviewed" && user?.uid === chatInfo?.buyerId && (
+          <div className="bg-blue-50 text-blue-600 p-4 rounded-2xl text-center text-xs font-bold border border-blue-100">
+            出品者の評価待ちです
+          </div>
+        )}
         {chatInfo?.status === "closed" && (
           <div className="bg-gray-100 text-gray-400 p-6 rounded-2xl text-center text-xs font-bold border border-dashed border-gray-300">
             この取引は完了しました
@@ -208,46 +237,39 @@ export default function ChatPage() {
         <div ref={scrollRef} />
       </div>
 
-      {chatInfo?.status !== "closed" && (
+      {chatInfo?.status === "active" || (chatInfo?.status === "buyer_reviewed" && user?.uid === chatInfo?.sellerId) ? (
         <div className="p-4 bg-white border-t pb-8">
           <form onSubmit={sendMessage} className="flex gap-2 items-center">
             <label className="flex-shrink-0 cursor-pointer p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition">
               <span className="text-xl">📷</span>
               <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} disabled={loading} />
             </label>
-            
             <input 
               value={input} onChange={(e) => setInput(e.target.value)}
               className="flex-1 bg-gray-100 border-none rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-red-500 text-sm"
               placeholder={loading ? "アップロード中..." : "メッセージを入力..."}
               disabled={loading}
             />
-            <button 
-              type="submit" 
-              disabled={!input.trim() || loading} 
-              className="bg-gray-900 text-white px-5 py-3 rounded-2xl font-bold text-sm disabled:bg-gray-300 active:scale-95 transition"
-            >
+            <button type="submit" disabled={!input.trim() || loading} className="bg-gray-900 text-white px-5 py-3 rounded-2xl font-bold text-sm disabled:bg-gray-300 active:scale-95 transition">
               送信
             </button>
           </form>
         </div>
-      )}
+      ) : chatInfo?.status === "buyer_reviewed" && user?.uid === chatInfo?.buyerId ? (
+         <div className="p-4 bg-white border-t text-center text-xs text-gray-400 pb-8 italic">相手の評価が完了するまでメッセージは送れません</div>
+      ) : null}
 
-      {/* --- 追加: 評価モーダル --- */}
       {showReviewModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-white w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl animate-in fade-in zoom-in duration-200">
-            <h2 className="text-xl font-black text-center mb-6">受取評価</h2>
-            
-            <p className="text-[10px] text-gray-400 font-bold text-center mb-4 uppercase tracking-widest">出品者の評価</p>
+            <h2 className="text-xl font-black text-center mb-2">取引評価</h2>
+            <p className="text-center text-gray-400 text-[10px] mb-6 font-bold uppercase tracking-widest">
+              {user?.uid === chatInfo?.buyerId ? "出品者への評価" : "購入者への評価"}
+            </p>
             
             <div className="flex justify-center gap-2 mb-8">
               {[1, 2, 3, 4, 5].map((star) => (
-                <button 
-                  key={star} 
-                  onClick={() => setRating(star)}
-                  className={`text-3xl transition ${rating >= star ? "grayscale-0" : "grayscale opacity-30"}`}
-                >
+                <button key={star} onClick={() => setRating(star)} className={`text-3xl transition ${rating >= star ? "grayscale-0" : "grayscale opacity-30"}`}>
                   ⭐
                 </button>
               ))}
@@ -261,17 +283,10 @@ export default function ChatPage() {
             />
 
             <div className="flex flex-col gap-3">
-              <button 
-                onClick={handleSubmitReview}
-                disabled={loading}
-                className="w-full bg-red-600 text-white py-4 rounded-2xl font-bold shadow-lg active:scale-95 transition disabled:bg-gray-300"
-              >
-                {loading ? "送信中..." : "評価を送信して取引完了"}
+              <button onClick={handleSubmitReview} disabled={loading} className="w-full bg-black text-white py-4 rounded-2xl font-bold shadow-lg active:scale-95 transition disabled:bg-gray-300">
+                {loading ? "送信中..." : "評価を送信する"}
               </button>
-              <button 
-                onClick={() => setShowReviewModal(false)}
-                className="w-full text-gray-400 text-xs font-bold py-2"
-              >
+              <button onClick={() => setShowReviewModal(false)} className="w-full text-gray-400 text-xs font-bold py-2">
                 キャンセル
               </button>
             </div>

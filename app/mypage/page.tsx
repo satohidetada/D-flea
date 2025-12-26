@@ -14,7 +14,7 @@ export default function MyPage() {
   const [purchasedItems, setPurchasedItems] = useState<any[]>([]);
   const [likedItems, setLikedItems] = useState<any[]>([]);
   const [chats, setChats] = useState<any[]>([]);
-  const [reviews, setReviews] = useState<any[]>([]); // 追加: レビュー用
+  const [reviews, setReviews] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState("selling");
   const [loading, setLoading] = useState(true);
   const router = useRouter();
@@ -41,11 +41,13 @@ export default function MyPage() {
           setSellingItems(snapSelling.docs.map(doc => ({ id: doc.id, ...doc.data() })));
         } catch (e) { console.error("Selling items error:", e); }
 
-        // 3. 購入済の商品
+        // 3. 購入済の商品 (soldAtがない場合のためにcreatedAtでもフォールバック)
         try {
-          const qPurchased = query(collection(db, "items"), where("buyerId", "==", u.uid), orderBy("soldAt", "desc"));
+          const qPurchased = query(collection(db, "items"), where("buyerId", "==", u.uid));
           const snapPurchased = await getDocs(qPurchased);
-          setPurchasedItems(snapPurchased.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+          const purchasedList = snapPurchased.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          // クライアント側でソート（soldAtがない古いデータ対策）
+          setPurchasedItems(purchasedList.sort((a:any, b:any) => (b.soldAt || 0) - (a.soldAt || 0)));
         } catch (e) { console.error("Purchased items error:", e); }
 
         // 4. いいねした商品
@@ -64,18 +66,18 @@ export default function MyPage() {
           }
         } catch (e) { console.error("Likes error:", e); }
 
-        // 5. 取引チャット一覧
+        // 5. 取引チャット一覧 (進行中を優先)
         try {
           const qChats = query(
             collection(db, "chats"),
-            or(where("sellerId", "==", u.uid), where("buyerId", "==", u.uid)),
-            orderBy("updatedAt", "desc")
+            or(where("sellerId", "==", u.uid), where("buyerId", "==", u.uid))
           );
           const snapChats = await getDocs(qChats);
-          setChats(snapChats.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+          const chatList = snapChats.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          setChats(chatList.sort((a:any, b:any) => (b.updatedAt || 0) - (a.updatedAt || 0)));
         } catch (e) { console.error("Chat error:", e); }
 
-        // 6. 評価（レビュー）の取得 ★追加
+        // 6. 評価（レビュー）の取得
         try {
           const qReviews = query(
             collection(db, "users", u.uid, "reviews"),
@@ -93,7 +95,7 @@ export default function MyPage() {
     return () => unsubscribe();
   }, [router]);
 
-  // 平均スコアの計算 ★追加
+  // 平均スコアの計算
   const averageRating = reviews.length > 0 
     ? (reviews.reduce((acc, cur) => acc + cur.rating, 0) / reviews.length).toFixed(1)
     : "0.0";
@@ -121,13 +123,13 @@ export default function MyPage() {
             alt={item.name}
             referrerPolicy="no-referrer"
           />
-          {item.isSold && (
-            <div className="absolute top-0 left-0 bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded-br-lg shadow-md">SOLD</div>
+          {(item.status === "completed" || item.isSold) && (
+            <div className="absolute top-0 left-0 bg-black/60 text-white text-[10px] font-bold px-2 py-1 rounded-br-lg backdrop-blur-sm">SOLD</div>
           )}
         </div>
         <div className="p-3">
-          <p className="text-[10px] text-gray-500 truncate">{item.name}</p>
-          <p className="font-bold text-red-600">¥{item.price?.toLocaleString()}</p>
+          <p className="text-[10px] text-gray-500 truncate mb-0.5">{item.name}</p>
+          <p className="font-black text-red-600">¥{item.price?.toLocaleString()}</p>
         </div>
       </Link>
     );
@@ -135,16 +137,20 @@ export default function MyPage() {
 
   const ChatCard = ({ chat }: { chat: any }) => (
     <Link href={`/chat/${chat.id}`} className="flex items-center gap-4 bg-white p-4 rounded-2xl border border-gray-100 mb-3 active:scale-95 transition shadow-sm">
-      <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center text-xl shadow-inner">💬</div>
+      <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl shadow-inner ${chat.status === "closed" ? "bg-gray-50" : "bg-red-50"}`}>
+        {chat.status === "closed" ? "🏁" : "💬"}
+      </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-bold truncate">{chat.itemName || "取引チャット"}</p>
         <div className="flex items-center gap-2 mt-1">
-          <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
-            chat.status === "closed" ? "bg-gray-100 text-gray-400" : "bg-green-100 text-green-600"
+          <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold ${
+            chat.status === "closed" ? "bg-gray-100 text-gray-400" : 
+            chat.status === "buyer_reviewed" ? "bg-blue-100 text-blue-600" : "bg-red-100 text-red-600"
           }`}>
-            {chat.status === "closed" ? "取引完了" : "進行中"}
+            {chat.status === "closed" ? "取引完了" : 
+             chat.status === "buyer_reviewed" ? "評価待ち" : "進行中"}
           </span>
-          <span className="text-[10px] text-gray-400 font-medium">
+          <span className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">
             {chat.sellerId === user.uid ? "出品" : "購入"}
           </span>
         </div>
@@ -159,69 +165,66 @@ export default function MyPage() {
       <main className="max-w-2xl mx-auto p-4 pb-20">
         
         <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-gray-100 flex flex-col items-center mb-6">
-          <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-white mb-4 bg-gray-100 shadow-md flex items-center justify-center">
-            {(profile?.photoURL || user?.photoURL) ? (
-              <img 
-                src={profile?.photoURL || user?.photoURL} 
-                className="w-full h-full object-cover" 
-                alt="Profile"
-              />
-            ) : (
-              <div className="text-gray-300 text-4xl">👤</div>
-            )}
+          <div className="relative">
+            <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-white mb-4 bg-gray-100 shadow-md flex items-center justify-center">
+              {(profile?.photoURL || user?.photoURL) ? (
+                <img 
+                  src={profile?.photoURL || user?.photoURL} 
+                  className="w-full h-full object-cover" 
+                  alt="Profile"
+                />
+              ) : (
+                <div className="text-gray-300 text-4xl">👤</div>
+              )}
+            </div>
           </div>
           
           <h2 className="text-xl font-bold mb-1">{profile?.displayName || user?.displayName || "ユーザー"}</h2>
           
-          {/* 評価の表示 ★追加 */}
-          <div className="flex items-center gap-1 mb-2">
+          <div className="flex items-center gap-1 mb-2 bg-gray-50 px-3 py-1 rounded-full">
             <span className="text-yellow-400 text-sm">⭐</span>
             <span className="text-sm font-black">{averageRating}</span>
-            <span className="text-gray-400 text-[10px] ml-1 font-bold">({reviews.length}件の評価)</span>
+            <span className="text-gray-400 text-[10px] ml-1 font-bold">({reviews.length})</span>
           </div>
 
           <div className="flex items-center gap-1 text-gray-400 text-xs mb-3 font-bold">
             <span className="text-red-500">📍</span>
             <span>{profile?.prefecture || "活動エリア未設定"}</span>
           </div>
-          {profile?.bio && <p className="text-xs text-gray-600 text-center leading-relaxed mb-6 px-4 italic whitespace-pre-wrap">{profile.bio}</p>}
+          {profile?.bio && <p className="text-xs text-gray-500 text-center leading-relaxed mb-6 px-4 italic whitespace-pre-wrap">{profile.bio}</p>}
           
           <div className="flex gap-2 w-full max-w-xs mb-4">
-            <Link href="/profile" className="flex-1 bg-gray-900 text-white text-center py-3 rounded-2xl text-xs font-bold active:scale-95 transition">プロフィール編集</Link>
+            <Link href="/profile" className="flex-1 bg-black text-white text-center py-3 rounded-2xl text-xs font-bold active:scale-95 transition shadow-lg">編集</Link>
             <button onClick={handleLogout} className="flex-1 border border-gray-200 text-gray-400 py-3 rounded-2xl text-xs font-bold active:scale-95 transition">ログアウト</button>
           </div>
-
-          <Link 
-            href="/contact" 
-            className="w-full max-w-xs bg-gray-50 text-gray-500 text-center py-3 rounded-2xl text-[10px] font-bold border border-gray-100 active:scale-95 transition flex items-center justify-center gap-2"
-          >
-            <span>💡</span> アプリへのご意見・ご要望はこちら
-          </Link>
         </div>
 
-        {/* タブ一覧の修正 ★評価を追加 */}
-        <div className="flex border-b border-gray-200 mb-6 bg-white rounded-t-2xl px-2">
+        {/* タブ一覧 */}
+        <div className="flex border-b border-gray-100 mb-6 bg-white rounded-t-[2rem] px-2 overflow-x-auto no-scrollbar">
           {[
-            { id: "selling", label: "出品", count: sellingItems.length },
+            { id: "selling", label: "出品中", count: sellingItems.filter(i => i.status !== "completed").length },
             { id: "chat", label: "取引中", count: chats.filter(c => c.status !== "closed").length },
-            { id: "purchased", label: "取引済", count: purchasedItems.length },
-            { id: "review", label: "評価", count: reviews.length }, // 追加
+            { id: "purchased", label: "購入済", count: purchasedItems.length },
+            { id: "review", label: "評価", count: reviews.length },
             { id: "liked", label: "いいね", count: likedItems.length }
           ].map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 py-4 text-[10px] sm:text-xs font-bold transition-all relative ${
+              className={`flex-1 min-w-[70px] py-4 text-[10px] font-bold transition-all relative ${
                 activeTab === tab.id ? "text-red-600" : "text-gray-400"
               }`}
             >
-              {tab.label} <span className="ml-0.5 opacity-60">{tab.count}</span>
+              <div className="flex flex-col items-center gap-0.5">
+                <span>{tab.label}</span>
+                <span className="text-[9px] opacity-60">{tab.count}</span>
+              </div>
               {activeTab === tab.id && <div className="absolute bottom-0 left-0 right-0 h-1 bg-red-600 rounded-t-full" />}
             </button>
           ))}
         </div>
 
-        <div>
+        <div className="min-h-[300px]">
           {activeTab === "selling" && (
             <div className="grid grid-cols-2 gap-3">
               {sellingItems.map(item => <ItemCard key={item.id} item={item} />)}
@@ -230,7 +233,7 @@ export default function MyPage() {
 
           {activeTab === "chat" && (
             <div className="flex flex-col">
-              {chats.map(chat => <ChatCard key={chat.id} chat={chat} />)}
+              {chats.filter(c => c.status !== "closed").map(chat => <ChatCard key={chat.id} chat={chat} />)}
             </div>
           )}
 
@@ -246,34 +249,40 @@ export default function MyPage() {
             </div>
           )}
 
-          {/* ★ 追加: 評価タブの内容 */}
           {activeTab === "review" && (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {reviews.map((rev) => (
-                <div key={rev.id} className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm">
-                  <div className="flex justify-between items-start mb-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-yellow-400 text-xs">{"⭐".repeat(rev.rating)}</span>
-                      <span className="text-[10px] font-bold text-gray-800">{rev.fromName}</span>
+                <div key={rev.id} className="bg-white p-5 rounded-[2rem] border border-gray-100 shadow-sm relative overflow-hidden">
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex flex-col">
+                      <div className="flex items-center gap-1 mb-1">
+                        {[...Array(5)].map((_, i) => (
+                          <span key={i} className={`text-[10px] ${i < rev.rating ? "text-yellow-400" : "text-gray-200"}`}>⭐</span>
+                        ))}
+                      </div>
+                      <span className="text-[11px] font-black text-gray-800">{rev.fromName} さん</span>
                     </div>
-                    <span className="text-[8px] text-gray-300 font-bold uppercase">
-                      {rev.createdAt?.toDate()?.toLocaleDateString() || ""}
+                    <span className="text-[9px] text-gray-300 font-bold">
+                      {rev.createdAt?.toDate()?.toLocaleDateString()}
                     </span>
                   </div>
-                  <p className="text-xs text-gray-600 leading-relaxed mb-2 font-medium">{rev.comment || "コメントなし"}</p>
-                  <p className="text-[9px] text-gray-300 font-bold">対象商品: {rev.itemName}</p>
+                  <p className="text-xs text-gray-600 leading-relaxed mb-3 whitespace-pre-wrap">{rev.comment || "コメントなし"}</p>
+                  <div className="bg-gray-50 p-2 rounded-xl inline-block">
+                    <p className="text-[9px] text-gray-400 font-bold">📦 {rev.itemName}</p>
+                  </div>
                 </div>
               ))}
             </div>
           )}
 
+          {/* 空の状態の表示 */}
           {((activeTab === "selling" && sellingItems.length === 0) ||
-            (activeTab === "chat" && chats.length === 0) ||
+            (activeTab === "chat" && chats.filter(c => c.status !== "closed").length === 0) ||
             (activeTab === "purchased" && purchasedItems.length === 0) ||
-            (activeTab === "review" && reviews.length === 0) || // 追加
+            (activeTab === "review" && reviews.length === 0) ||
             (activeTab === "liked" && likedItems.length === 0)) && (
-            <div className="py-20 text-center text-gray-400 text-sm bg-white rounded-b-3xl border border-dashed border-gray-200 font-bold">
-              表示する項目がありません
+            <div className="py-20 text-center text-gray-300 text-xs bg-white rounded-[2rem] border border-dashed border-gray-100 font-bold">
+               データがありません
             </div>
           )}
         </div>
