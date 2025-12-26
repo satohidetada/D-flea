@@ -40,8 +40,9 @@ export default function Header() {
     <header className="sticky top-0 z-50 bg-white border-b border-gray-100 px-4 py-3 flex justify-between items-center shadow-sm">
       {/* 左側：ロゴとキャッチコピー */}
       <div className="flex items-baseline gap-2">
-        <Link href="/" className="text-2xl font-black text-red-600 tracking-tighter">NOMI</Link>
-        <span className="text-[10px] font-bold text-gray-400 leading-none pb-0.5 hidden xs:inline">
+        <Link href="/" className="text-2xl font-black text-red-600 tracking-tighter shrink-0">NOMI</Link>
+        {/* hidden を外し、極小画面でも表示されるように修正 */}
+        <span className="text-[10px] font-bold text-gray-400 leading-none pb-0.5 inline-block">
           梱包いらず、手軽な街の蚤の市
         </span>
       </div>
@@ -81,12 +82,12 @@ export default function Header() {
               </div>
             )}
 
-            <Link href="/mypage" className="w-8 h-8 rounded-full bg-gray-100 border border-gray-100 overflow-hidden inline-block ml-2 align-middle">
+            <Link href="/mypage" className="w-8 h-8 rounded-full bg-gray-100 border border-gray-100 overflow-hidden inline-block ml-2 align-middle shrink-0">
               {user.photoURL ? <img src={user.photoURL} className="w-full h-full object-cover" /> : <div className="text-center pt-1">👤</div>}
             </Link>
           </div>
         ) : (
-          <Link href="/login" className="text-xs font-bold text-gray-500 border px-3 py-2 rounded-full">ログイン</Link>
+          <Link href="/login" className="text-xs font-bold text-gray-500 border px-3 py-2 rounded-full shrink-0">ログイン</Link>
         )}
       </div>
     </header>
