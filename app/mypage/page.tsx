@@ -23,7 +23,7 @@ export default function MyPage() {
       if (u) {
         setUser(u);
         
-        // 1. プロフィール情報取得 (ここを最速で終わらせる)
+        // 1. プロフィール情報取得
         try {
           const profileSnap = await getDoc(doc(db, "users", u.uid));
           if (profileSnap.exists()) {
@@ -31,7 +31,7 @@ export default function MyPage() {
           }
         } catch (e) { console.error("Profile fetch error:", e); }
 
-        // 各種データの取得（1つがエラーになっても他を表示できるようにtry-catchを分ける）
+        // 各種データの取得
         
         // 2. 出品した商品
         try {
@@ -91,20 +91,33 @@ export default function MyPage() {
 
   if (loading) return <div className="p-10 text-center text-black font-bold">読み込み中...</div>;
 
-  const ItemCard = ({ item }: { item: any }) => (
-    <Link href={`/items/${item.id}`} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 block transition active:scale-95">
-      <div className="relative aspect-square">
-        <img src={item.imageUrl} className="w-full h-full object-cover" alt="" />
-        {item.isSold && (
-          <div className="absolute top-0 left-0 bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded-br-lg shadow-md">SOLD</div>
-        )}
-      </div>
-      <div className="p-3">
-        <p className="text-[10px] text-gray-500 truncate">{item.name}</p>
-        <p className="font-bold text-red-600">¥{item.price?.toLocaleString()}</p>
-      </div>
-    </Link>
-  );
+  // --- 商品カードコンポーネント (画像表示ロジックのみ修正) ---
+  const ItemCard = ({ item }: { item: any }) => {
+    // imageUrls(配列)がある場合は0番目、なければ従来のimageUrl(文字列)を使用
+    const displayThumbnail = (item.imageUrls && item.imageUrls.length > 0) 
+      ? item.imageUrls[0] 
+      : item.imageUrl;
+
+    return (
+      <Link href={`/items/${item.id}`} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 block transition active:scale-95">
+        <div className="relative aspect-square bg-gray-50">
+          <img 
+            src={displayThumbnail} 
+            className="w-full h-full object-cover" 
+            alt={item.name}
+            referrerPolicy="no-referrer"
+          />
+          {item.isSold && (
+            <div className="absolute top-0 left-0 bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded-br-lg shadow-md">SOLD</div>
+          )}
+        </div>
+        <div className="p-3">
+          <p className="text-[10px] text-gray-500 truncate">{item.name}</p>
+          <p className="font-bold text-red-600">¥{item.price?.toLocaleString()}</p>
+        </div>
+      </Link>
+    );
+  };
 
   const ChatCard = ({ chat }: { chat: any }) => (
     <Link href={`/chat/${chat.id}`} className="flex items-center gap-4 bg-white p-4 rounded-2xl border border-gray-100 mb-3 active:scale-95 transition shadow-sm">
@@ -131,16 +144,14 @@ export default function MyPage() {
       <Header />
       <main className="max-w-2xl mx-auto p-4 pb-20">
         
-        {/* プロフィールセクション */}
         <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-gray-100 flex flex-col items-center mb-6">
           <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-white mb-4 bg-gray-100 shadow-md flex items-center justify-center">
-            {/* 修正点: profile.photoURL を最優先にし、キャッシュを考慮 */}
             {(profile?.photoURL || user?.photoURL) ? (
               <img 
                 src={profile?.photoURL || user?.photoURL} 
                 className="w-full h-full object-cover" 
                 alt="Profile"
-                key={profile?.photoURL} // URLが変わった時に再レンダリングを強制
+                key={profile?.photoURL}
               />
             ) : (
               <div className="text-gray-300 text-4xl">👤</div>
@@ -161,7 +172,6 @@ export default function MyPage() {
           </div>
         </div>
 
-        {/* タブ切り替えメニュー */}
         <div className="flex border-b border-gray-200 mb-6 bg-white rounded-t-2xl px-2">
           {[
             { id: "selling", label: "出品", count: sellingItems.length },
@@ -182,7 +192,6 @@ export default function MyPage() {
           ))}
         </div>
 
-        {/* 表示エリア */}
         <div>
           {activeTab === "selling" && (
             <div className="grid grid-cols-2 gap-3">
@@ -208,7 +217,6 @@ export default function MyPage() {
             </div>
           )}
 
-          {/* 空の状態の表示ロジック修正 */}
           {((activeTab === "selling" && sellingItems.length === 0) ||
             (activeTab === "chat" && chats.length === 0) ||
             (activeTab === "purchased" && purchasedItems.length === 0) ||
