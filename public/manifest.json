@@ -1,7 +1,7 @@
 {
-  "name": "NOMI - フリマアプリ",
-  "short_name": "NOMI",
-  "description": "地域でつながる、直接取引フリマアプリ",
+  "name": "D-flea- フリマアプリ",
+  "short_name": "D-flea",
+  "description": "社員専用フリマアプリ",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
