@@ -43,7 +43,7 @@ export default function Header() {
         <Link href="/" className="text-2xl font-black text-red-600 tracking-tighter shrink-0">D-flea</Link>
         {/* hidden を外し、極小画面でも表示されるように修正 */}
         <span className="text-[10px] font-bold text-gray-400 leading-none pb-0.5 inline-block">
-          梱包いらず、手軽な街の蚤の市
+          社内限定、現金手渡しフリマサービス
         </span>
       </div>
       
