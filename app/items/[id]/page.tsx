@@ -110,7 +110,6 @@ export default function ItemDetail() {
   };
 
   const handleDelete = async () => {
-    // ステータスが "completed"（取引完了）でもなく、かつ "isSold"（取引中）の場合は削除不可
     if (item.isSold && item.status !== "completed") {
       alert("取引進行中の商品は削除できません。取引を完了させるか、キャンセルが必要な場合は運営にお問い合わせください。");
       return;
@@ -137,7 +136,6 @@ export default function ItemDetail() {
       <Header />
       <div className="max-w-md mx-auto bg-white min-h-screen shadow-xl">
         
-        {/* 画像エリア：SOLDOUTでもスクロール可能 */}
         <div className="relative aspect-square bg-gray-100 group overflow-hidden">
           <div 
             ref={scrollRef}
@@ -155,7 +153,6 @@ export default function ItemDetail() {
             ))}
           </div>
 
-          {/* SOLDOUTラベルのみを上に重ねる */}
           {item.isSold && (
             <div className="absolute top-0 left-0 bg-red-600 text-white text-xl font-black px-6 py-2 shadow-xl z-20 rounded-br-3xl tracking-wider">
               SOLD OUT
@@ -203,7 +200,16 @@ export default function ItemDetail() {
               ⚠️ 決済・配送機能はありません。
             </p>
   
-            {isSeller ? (
+            {!user ? (
+              <Link 
+                href={item.isSold ? "#" : "/login"}
+                className={`block w-full text-center font-bold py-4 rounded-2xl shadow-lg transition ${
+                  item.isSold ? "bg-gray-300 cursor-not-allowed text-gray-500" : "bg-red-600 text-white active:scale-95"
+                }`}
+              >
+                {item.isSold ? "売り切れました" : "ログインして購入手続きへ"}
+              </Link>
+            ) : isSeller ? (
               <>
                 {item.isSold && (
                   <Link href={`/chat/${id}`} className="block w-full bg-green-600 text-white text-center font-bold py-4 rounded-2xl shadow-lg active:scale-95 transition">
@@ -213,15 +219,15 @@ export default function ItemDetail() {
                 
                 {(!item.isSold || item.status === "completed") ? (
                   <>
-                    <Link href={`/items/${id}/edit`} className="block w-full bg-gray-800 text-white text-center font-bold py-4 rounded-2xl shadow-lg">
+                    <Link href={`/items/${id}/edit`} className="block w-full bg-gray-800 text-white text-center font-bold py-4 rounded-2xl shadow-lg mt-3">
                       商品の編集
                     </Link>
-                    <button onClick={handleDelete} className="w-full bg-white text-red-600 border-2 border-red-50 font-bold py-4 rounded-2xl">
+                    <button onClick={handleDelete} className="w-full bg-white text-red-600 border-2 border-red-50 font-bold py-4 rounded-2xl mt-3">
                       この出品を削除する
                     </button>
                   </>
                 ) : (
-                  <div className="p-4 bg-gray-100 rounded-2xl text-center text-[10px] text-gray-500 font-bold">
+                  <div className="p-4 bg-gray-100 rounded-2xl text-center text-[10px] text-gray-500 font-bold mt-3">
                     取引進行中のため、編集・削除はできません
                   </div>
                 )}
@@ -234,7 +240,7 @@ export default function ItemDetail() {
               <Link 
                 href={item.isSold ? "#" : `/items/${id}/buy`}
                 className={`block w-full text-center font-bold py-4 rounded-2xl shadow-lg transition ${
-                  item.isSold ? "bg-gray-300 cursor-not-allowed" : "bg-red-600 text-white active:scale-95"
+                  item.isSold ? "bg-gray-300 cursor-not-allowed text-gray-500" : "bg-red-600 text-white active:scale-95"
                 }`}
               >
                 {item.isSold ? "売り切れました" : "購入手続きへ"}
