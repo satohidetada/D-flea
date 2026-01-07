@@ -82,7 +82,7 @@ export default function LoginPage() {
       <Header />
       <main className="flex flex-col items-center justify-center pt-20 px-4">
         <div className="max-w-md w-full bg-white p-10 rounded-[2.5rem] shadow-xl border border-gray-100">
-          <h1 className="text-3xl font-black text-red-600 mb-2 text-center italic tracking-tighter">NOMI</h1>
+          <h1 className="text-3xl font-black text-red-600 mb-2 text-center italic tracking-tighter">D-flea</h1>
           <p className="text-gray-400 text-[10px] font-bold mb-8 text-center uppercase tracking-[0.2em]">
             {isRegister ? "Create Account" : "Member Login"}
           </p>
