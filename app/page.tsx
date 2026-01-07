@@ -107,7 +107,7 @@ export default function Home() {
                 placeholder="キーワード検索"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-gray-100 py-2.5 pl-10 pr-4 rounded-xl text-sm outline-none focus:ring-2 focus:ring-red-500/20 font-medium"
+                className="w-full bg-gray-100 py-2.5 pl-10 pr-4 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 font-medium"
               />
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
             </div>
@@ -131,7 +131,7 @@ export default function Home() {
                   onClick={() => setShowOnlyLikes(!showOnlyLikes)}
                   className={`px-3 py-1.5 rounded-full text-[10px] font-bold whitespace-nowrap transition-all border ${
                     showOnlyLikes 
-                      ? "bg-red-50 border-red-200 text-red-600 shadow-sm" 
+                      ? "bg-blue-50 border-blue-200 text-blue-600 shadow-sm" 
                       : "bg-white border-gray-200 text-gray-500"
                   }`}
                 >
@@ -144,7 +144,7 @@ export default function Home() {
               <button 
                 onClick={() => { setSelectedPrefs([]); setShowOnlyLikes(false); }}
                 className={`px-3 py-1.5 rounded-full text-[10px] font-bold whitespace-nowrap transition-colors ${
-                  (selectedPrefs.length === 0 && !showOnlyLikes) ? "bg-red-600 text-white" : "bg-gray-100 text-gray-500"
+                  (selectedPrefs.length === 0 && !showOnlyLikes) ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-500"
                 }`}
               >
                 すべて
@@ -184,14 +184,14 @@ export default function Home() {
 />
                   {item.isSold && (
                     <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                      <span className="bg-red-600 text-white text-[10px] font-black px-3 py-1 rounded-sm rotate-[-10deg] shadow-lg">SOLD OUT</span>
+                      <span className="bg-blue-600 text-white text-[10px] font-black px-3 py-1 rounded-sm rotate-[-10deg] shadow-lg">SOLD OUT</span>
                     </div>
                   )}
                 </div>
                 <div className="p-2 pb-10">
                   <p className="text-[10px] text-gray-400 font-bold mb-0.5">{item.sellerPrefecture || "地域不明"}</p>
                   <p className="text-xs text-gray-700 truncate font-medium">{item.name}</p>
-                  <p className="font-black text-sm text-red-600 mt-1">¥{item.price?.toLocaleString()}</p>
+                  <p className="font-black text-sm text-blue-600 mt-1">¥{item.price?.toLocaleString()}</p>
                 </div>
               </Link>
               
@@ -216,7 +216,7 @@ export default function Home() {
         </div>
       )}
 
-      <Link href="/upload" className="fixed bottom-6 right-6 bg-red-600 text-white w-14 h-14 rounded-full flex flex-col items-center justify-center shadow-2xl font-black text-[9px] active:scale-90 transition z-30">
+      <Link href="/upload" className="fixed bottom-6 right-6 bg-blue-600 text-white w-14 h-14 rounded-full flex flex-col items-center justify-center shadow-2xl font-black text-[9px] active:scale-90 transition z-30">
         <span className="text-xl">📸</span> 出品
       </Link>
     </div>
