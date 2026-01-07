@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   title: "D-flea",
   description: "社員専用フリマアプリ",
   manifest: "/manifest.json", // ★これを追加
-  themeColor: "#ef4444",      // ★これを追加（iPhoneの上のバーの色などになります）
+  themeColor: "#005481",      // ★これを追加（iPhoneの上のバーの色などになります）
   appleWebApp: {              // ★iPhone向けの対応
     capable: true,
     statusBarStyle: "default",
