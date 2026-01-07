@@ -40,7 +40,7 @@ export default function Header() {
     <header className="sticky top-0 z-50 bg-white border-b border-gray-100 px-4 py-3 flex justify-between items-center shadow-sm">
       {/* 左側：ロゴとキャッチコピー */}
       <div className="flex items-baseline gap-2">
-        <Link href="/" className="text-2xl font-black text-red-600 tracking-tighter shrink-0">NOMI</Link>
+        <Link href="/" className="text-2xl font-black text-red-600 tracking-tighter shrink-0">D-flea</Link>
         {/* hidden を外し、極小画面でも表示されるように修正 */}
         <span className="text-[10px] font-bold text-gray-400 leading-none pb-0.5 inline-block">
           梱包いらず、手軽な街の蚤の市

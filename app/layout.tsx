@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   appleWebApp: {              // ★iPhone向けの対応
     capable: true,
     statusBarStyle: "default",
-    title: "NOMI",
+    title: "D-flea",
   },
 };
 

@@ -37,7 +37,7 @@ export default function ContactPage() {
                 name="name"
                 id="name"
                 required
-                placeholder="メルカリ 太郎"
+                placeholder="佐藤 太郎"
                 className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:border-red-500 transition text-sm text-black"
               />
             </div>

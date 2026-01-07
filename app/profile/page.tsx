@@ -182,7 +182,7 @@ export default function ProfileEdit() {
               )}
             </div>
             <label className="text-xs font-bold text-red-600 bg-red-50 px-4 py-2 rounded-full cursor-pointer hover:bg-red-100 transition shadow-sm active:scale-95">
-              {uploading ? "軽量化して送信中..." : "写真を変更"}
+              {uploading ? "送信中..." : "写真を変更"}
               <input 
                 type="file" 
                 className="hidden" 
