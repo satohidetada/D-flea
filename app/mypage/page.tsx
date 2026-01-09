@@ -216,7 +216,7 @@ function MyPageContent() {
             </Link>
           </div>
           
-          <p className="text-[9px] text-gray-300 mt-4 font-bold tracking-widest uppercase">© 2025 my-flea-app</p>
+          <p className="text-[9px] text-gray-300 mt-4 font-bold tracking-widest uppercase">© 2025 d-flea-app</p>
         </div> 
 
         <div className="flex border-b border-gray-100 mb-6 bg-white rounded-t-[2rem] px-2 overflow-x-auto no-scrollbar">
