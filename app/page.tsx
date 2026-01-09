@@ -194,13 +194,16 @@ export default function Home() {
             <div key={item.id} className="relative group">
               <Link href={`/items/${item.id}`} className="bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100 block h-full active:scale-[0.98] transition">
                 <div className="aspect-square bg-gray-50 relative">
-            <img 
-              src={item.imageUrls ? item.imageUrls[0] : item.imageUrl} 
-              className="w-full h-full object-cover" 
-              alt={item.name} 
-              loading="lazy" 
-              referrerPolicy="no-referrer"
-            />
+    <img 
+  src={item.imageUrls ? item.imageUrls[0] : item.imageUrl} 
+  className="w-full h-full object-cover transition-opacity duration-300 opacity-0" 
+  alt={item.name} 
+  loading="lazy" 
+  referrerPolicy="no-referrer"
+  onLoad={(e) => {
+    (e.target as HTMLImageElement).classList.remove('opacity-0');
+  }}
+/>
                   {item.isSold && (
                     <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
                       <span className="bg-red-600 text-white text-[10px] font-black px-3 py-1 rounded-sm rotate-[-10deg] shadow-lg">SOLD OUT</span>

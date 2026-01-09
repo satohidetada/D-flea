@@ -44,7 +44,7 @@ export default function UploadPage() {
           const canvas = document.createElement("canvas");
           let width = img.width;
           let height = img.height;
-          const MAX_SIZE = 1200;
+          const MAX_SIZE = 800;
           if (width > height) {
             if (width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; }
           } else {
@@ -55,7 +55,7 @@ export default function UploadPage() {
           const ctx = canvas.getContext("2d");
           if (!ctx) return reject("Canvas context error");
           ctx.drawImage(img, 0, 0, width, height);
-          const base64 = canvas.toDataURL("image/jpeg", 0.7);
+          const base64 = canvas.toDataURL("image/jpeg", 0.5);
           resolve(base64.split(",")[1]); 
         };
       };
