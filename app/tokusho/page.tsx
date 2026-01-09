@@ -20,7 +20,7 @@ export default function TokushoPage() {
           <div className="space-y-6">
             <section className="border-b border-gray-50 pb-4">
               <h2 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">サービス名</h2>
-              <p className="text-sm font-bold">NOMI</p>
+              <p className="text-sm font-bold">D-flea</p>
             </section>
 
             <section className="border-b border-gray-50 pb-4">
