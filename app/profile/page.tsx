@@ -84,7 +84,7 @@ export default function ProfileEdit() {
           if (!ctx) return reject("Canvas context error");
           ctx.drawImage(img, 0, 0, width, height);
 
-          const base64 = canvas.toDataURL("image/jpeg", 0.6);
+          const base64 = canvas.toDataURL("image/jpeg", 0.5);
           resolve(base64.split(",")[1]);
           // メモリ解放
           img.onload = null;
