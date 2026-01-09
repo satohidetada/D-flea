@@ -149,7 +149,7 @@ export default function UploadPage() {
       <Header />
       <main className="p-4 flex flex-col items-center">
         <div className="max-w-md w-full bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-          <h1 className="text-xl font-bold mb-6 text-red-600 tracking-tighter">📸 NOMIに出品する</h1>
+          <h1 className="text-xl font-bold mb-6 text-red-600 tracking-tighter">📸 D-fleaに出品する</h1>
           
           <form onSubmit={handleUpload} className="space-y-6">
             <div>
