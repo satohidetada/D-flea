@@ -4,6 +4,7 @@ import { db, auth } from "@/lib/firebase/config";
 import { collection, query, orderBy, onSnapshot, doc, setDoc, deleteDoc, updateDoc, increment } from "firebase/firestore";
 import Link from "next/link";
 import Header from "@/components/Header";
+import TutorialModal from "@/components/TutorialModal"; // 1. インポートを追記
 
 const PREFECTURES = [
   "北海道", 
@@ -22,6 +23,7 @@ export default function Home() {
   const [sortBy, setSortBy] = useState("newest");
   const [user, setUser] = useState<any>(null);
   const [userLikes, setUserLikes] = useState<string[]>([]);
+  const [showTutorial, setShowTutorial] = useState(false); // 2. 表示管理用のStateを追記
 
   useEffect(() => {
     const q = query(collection(db, "items"), orderBy("createdAt", "desc"));
@@ -32,6 +34,12 @@ export default function Home() {
     const unsubAuth = auth.onAuthStateChanged((u) => {
       setUser(u);
       if (u) {
+        // --- 3. ログイン時にチュートリアルを見たか判定するロジックを追記 ---
+        const hasSeen = localStorage.getItem(`tutorial_seen_${u.uid}`);
+        if (!hasSeen) {
+          setShowTutorial(true);
+        }
+        // ----------------------------------------------------------
         const unsubLikes = onSnapshot(collection(db, "users", u.uid, "likes"), (s) => {
           setUserLikes(s.docs.map(d => d.id));
         });
@@ -39,10 +47,19 @@ export default function Home() {
       } else {
         setUserLikes([]);
         setShowOnlyLikes(false);
+        setShowTutorial(false);
       }
     });
     return () => { unsubItems(); unsubAuth(); };
   }, []);
+
+  // 4. チュートリアルを閉じる関数を追記
+  const closeTutorial = () => {
+    if (user) {
+      localStorage.setItem(`tutorial_seen_${user.uid}`, "true");
+    }
+    setShowTutorial(false);
+  };
 
   useEffect(() => {
     let result = [...items];
@@ -96,6 +113,9 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gray-50 pb-20 text-black">
       <Header />
+      
+      {/* 5. モーダルを表示するコンポーネントを追記 */}
+      {showTutorial && <TutorialModal onClose={closeTutorial} />}
       
       <div className="sticky top-14 z-20 bg-white border-b border-gray-100 shadow-sm">
         <div className="max-w-4xl mx-auto p-3 space-y-3">
@@ -174,14 +194,13 @@ export default function Home() {
             <div key={item.id} className="relative group">
               <Link href={`/items/${item.id}`} className="bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100 block h-full active:scale-[0.98] transition">
                 <div className="aspect-square bg-gray-50 relative">
-                  {/* ★ Googleドライブの画像表示をスマホで許可するための設定を追加 */}
             <img 
-  src={item.imageUrls ? item.imageUrls[0] : item.imageUrl} 
-  className="w-full h-full object-cover" 
-  alt={item.name} 
-  loading="lazy" 
-  referrerPolicy="no-referrer"
-/>
+              src={item.imageUrls ? item.imageUrls[0] : item.imageUrl} 
+              className="w-full h-full object-cover" 
+              alt={item.name} 
+              loading="lazy" 
+              referrerPolicy="no-referrer"
+            />
                   {item.isSold && (
                     <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
                       <span className="bg-red-600 text-white text-[10px] font-black px-3 py-1 rounded-sm rotate-[-10deg] shadow-lg">SOLD OUT</span>
