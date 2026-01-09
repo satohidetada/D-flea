@@ -4,24 +4,27 @@ import { auth, db } from "@/lib/firebase/config";
 import { 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
-  onAuthStateChanged 
+  onAuthStateChanged,
+  sendEmailVerification,
+  signOut,
+  updateProfile // 追加
 } from "firebase/auth";
-import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import Header from "@/components/Header";
-import Link from "next/link"; // Linkを追加
+import Link from "next/link";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [isRegister, setIsRegister] = useState(false); // ログインか登録かの切り替え
+  const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // 既にログインしている場合は自動的にトップページへ
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      // ログイン済み かつ メール認証済みの場合のみトップへ
+      if (user && user.emailVerified) {
         router.push("/");
       }
     });
@@ -41,28 +44,49 @@ export default function LoginPage() {
         // --- 新規登録処理 ---
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
+        const tempDisplayName = email.split("@")[0];
+
+        // 1. Authプロフィール更新（メール内の %DISPLAY_NAME% 用）
+        await updateProfile(user, {
+          displayName: tempDisplayName
+        });
+
+        // 2. 認証メールを送信
+        await sendEmailVerification(user);
         
-        // Firestoreにユーザー情報を登録 (既存データ + 同意ログ)
+        // 3. Firestoreに初期データと同意情報を登録
         await setDoc(doc(db, "users", user.uid), {
           uid: user.uid,
           email: user.email,
-          displayName: email.split("@")[0], // メールの前半部分を仮の名前に
+          displayName: tempDisplayName,
           prefecture: "未設定",
           photoURL: "",
           createdAt: serverTimestamp(),
-          // 同意情報の記録を追加
           termsAgreed: true,
           termsAgreedAt: serverTimestamp(),
         });
-        alert("アカウントを作成しました！");
+
+        // 4. 認証待ち状態にするため一旦ログアウト
+        await signOut(auth);
+        
+        alert("確認メールを送信しました。メール内のURLをクリックして本登録を完了してください。");
+        setIsRegister(false); // ログイン画面に切り替え
+
       } else {
         // --- ログイン処理 ---
-        await signInWithEmailAndPassword(auth, email, password);
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+
+        // メール認証チェック
+        if (!user.emailVerified) {
+          alert("メールアドレスの確認が取れていません。届いたメールのURLをクリックしてください。");
+          await signOut(auth);
+          return;
+        }
       }
-      router.push("/");
     } catch (error: any) {
       console.error(error);
-      // エラーメッセージの日本語化
+      // 既存のエラー判定をすべて維持
       if (error.code === "auth/user-not-found" || error.code === "auth/wrong-password" || error.code === "auth/invalid-credential") {
         alert("メールアドレスまたはパスワードが正しくありません。");
       } else if (error.code === "auth/email-already-in-use") {
@@ -111,7 +135,6 @@ export default function LoginPage() {
               />
             </div>
 
-            {/* 同意文言の追加 */}
             <div className="px-2 pt-2 text-center text-[10px] leading-relaxed text-gray-400 font-bold">
               {isRegister ? "登録" : "ログイン"}ボタンを押すことで、当アプリの<br />
               <Link href="/terms" className="text-red-500 underline underline-offset-2">利用規約</Link>
@@ -125,7 +148,7 @@ export default function LoginPage() {
               disabled={loading}
               className={`w-full bg-red-600 text-white py-4 rounded-2xl font-black shadow-lg shadow-red-200 transition active:scale-95 mt-2 ${loading ? "opacity-50 cursor-not-allowed" : "hover:bg-red-700"}`}
             >
-              {loading ? "処理中..." : (isRegister ? "同意して登録して始める" : "同意してログイン")}
+              {loading ? "処理中..." : (isRegister ? "確認メールを送信する" : "同意してログイン")}
             </button>
           </form>
 
