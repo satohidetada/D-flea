@@ -69,7 +69,7 @@ export default function LoginPage() {
         // 4. 認証待ち状態にするため一旦ログアウト
         await signOut(auth);
         
-        alert("確認メールを送信しました。メール内のURLをクリックして本登録を完了してください。");
+        alert("認証メールを送信しました。 メール内のURLをクリックして、登録を完了してください。 ※メールが届かない場合は、迷惑メールフォルダもご確認ください。");
         setIsRegister(false); // ログイン画面に切り替え
 
       } else {
